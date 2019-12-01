@@ -1,0 +1,55 @@
+<table class="layui-hide" id="service-list-table" lay-filter="tableEvent"></table>
+
+<script src="/static/js/layui/layui.js"></script>
+<link rel="stylesheet" type="text/css" href="/static/js/layui/css/layui.css" />
+<script>
+  layui.use(['laypage', 'layer', 'form', 'table'], function () {
+    var laypage = layui.laypage
+        , layer = layui.layer
+        , table = layui.table
+    ;
+
+    table.render({
+      elem: '#service-list-table'
+      , url: '{% url "api_microservice" %}'
+      , cellMinWidth: 80
+      , autoSort: false
+      , page: {
+        curr: 1
+        , limit: 20
+        , limits: [20, 30, 40, 50, 100]
+        , layout: ['count', 'prev', 'page', 'next', 'limit', 'skip']
+        , jump: function (obj) {
+
+        }
+      }
+      , cols: [[
+        {field: 'name', title: 'service名称', sort: true, minWidth: 120}
+        , {field: 'language', title: '语言类型', width: 100}
+        , {field: 'description', title: '描述', minWidth: 150}
+      ]]
+      , id: 'serviceListTable'
+    });
+    /*
+     * 搜索与重载
+     */
+    var $ = layui.$, active = {
+      reload: handleReloadTable
+    };
+
+    function handleReloadTable() {
+      $.ajax({
+        url: '{% url "api_microservice" %}',
+        type: 'GET',
+        dataType: 'json',
+      }).done(result => {
+        table.reload('serviceListTable', {
+          page: {curr: 1}
+        })
+      }).fail((xhr, status, error) => {
+        console.log(error)
+      })
+
+    }
+  })
+</script>

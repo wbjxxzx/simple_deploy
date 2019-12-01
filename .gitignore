@@ -1,0 +1,10 @@
+*.py[cd]
+.vscode
+.idea
+db.sqlite3
+venv
+__pycache__
+log
+migrations
+local.py
+*.bak
