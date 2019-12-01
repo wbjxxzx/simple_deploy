@@ -1,12 +1,152 @@
-<table class="layui-hide" id="service-list-table" lay-filter="tableEvent"></table>
-
-<script src="/static/js/layui/layui.js"></script>
+<head>
+  <script src="/static/js/layui/layui.js"></script>
 <link rel="stylesheet" type="text/css" href="/static/js/layui/css/layui.css" />
+</head>
+<body>
+  <div class="layui-row">
+    <div class="layui-col-md2 layui-col-md-offset4">
+      <button id="create-form-button" class="layui-btn" style="float: right;">
+        <i class="layui-icon layui-icon-add-1"></i> 添加
+      </button>
+    </div>
+  </div>
+
+  <!-- 需要弹出的添加界面 -->
+  <div class="layui-row" id="service-create" style="display: none;">
+    <div class="layui-col-md10">
+      <form id="service-create-form" class="layui-form" lay-filter="create"> <!-- 提示：如果你不想用form，你可以换成div等任何一个普通元素 -->
+        <div class="layui-form-item">
+          <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 名称</label>
+          <div class="layui-input-block">
+            <input type="text"
+                   name="name"
+                   placeholder="请输入服务名称"
+                   autocomplete="off"
+                   class="layui-input"
+                   lay-verify="name"
+            />
+          </div>
+        </div>
+
+        <div class="layui-form-item">
+          <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 语言类型</label>
+          <div class="layui-input-block" >
+            <input type="radio" lay-filter="create-lauguage" name="language" value="cpp" title="cpp" checked>
+            <input type="radio" lay-filter="create-lauguage" name="language" value="go" title="go" >
+            <input type="radio" lay-filter="create-lauguage" name="language" value="other" title="其它" >
+          </div>
+        </div>
+
+        <div class="layui-form-item">
+          <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 构建来源</label>
+          <div class="layui-input-block">
+            <input type="radio" name="build_orig" value="git" title="git" checked>
+          </div>
+        </div>
+
+        <div class="layui-form-item">
+          <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 构建地址</label>
+          <div class="layui-input-block">
+            <input type="text"
+                   name="build_url"
+                   placeholder="请输入构建地址"
+                   autocomplete="off"
+                   class="layui-input"
+                   lay-verify="build_url"
+            />
+          </div>
+        </div>
+
+        <div class="layui-form-item layui-form-text">
+          <label class="layui-form-label">描述</label>
+          <div class="layui-input-block">
+            <textarea rows="5" name="description" placeholder="请输入内容" class="layui-textarea"></textarea>
+          </div>
+        </div>
+
+        <div class="layui-form-item">
+          <div class="layui-input-block">
+            <button class="layui-btn layui-btn-primary my-cancel-button">取消</button>
+            <button class="layui-btn" lay-submit="" lay-filter="create-form">立即提交</button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+<table class="layui-hide" id="service-list-table" lay-filter="tableEvent"></table>
+  <script type="text/html" id="barDemo">
+    <a class="layui-btn layui-btn-xs layui-btn-primary" lay-event="edit">编辑</a>
+    <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
+  </script>
+<!-- 修改 -->
+  <div class="layui-row" id="service-modify" style="display: none;">
+    <div class="layui-col-md10">
+      <form id="service-modify-form" class="layui-form" lay-filter="modify">
+        <div class="layui-form-item">
+          <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 名称</label>
+          <div class="layui-input-block">
+            <input type="text"
+                   name="name"
+                   placeholder="请输入服务名称"
+                   autocomplete="off"
+                   class="layui-input"
+                   lay-verify="name"
+                   disabled=""
+                   style="background-color: #eee; cursor: not-allowed;"
+            />
+          </div>
+        </div>
+
+        <div class="layui-form-item">
+          <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 语言类型</label>
+          <div class="layui-input-block">
+            <input type="radio" name="language" value="cpp" title="cpp" disabled>
+            <input type="radio" name="language" value="go" title="go" disabled>
+            <input type="radio" name="language" value="other" title="其它" disabled>
+          </div>
+        </div>
+
+        <div class="layui-form-item">
+          <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 构建地址</label>
+          <div class="layui-input-block">
+            <input type="text"
+                   name="build_url"
+                   placeholder="请输入构建地址"
+                   autocomplete="off"
+                   class="layui-input"
+                   lay-verify="build_url"
+                   disabled=""
+                   style="background-color: #eee; cursor: not-allowed;"
+            />
+          </div>
+        </div>
+
+        <div class="layui-form-item layui-form-text">
+          <label class="layui-form-label">描述</label>
+          <div class="layui-input-block">
+            <textarea rows="5" name="description" placeholder="请输入内容" class="layui-textarea"></textarea>
+          </div>
+        </div>
+
+        <div class="layui-form-item">
+          <div class="layui-input-block">
+            <button class="layui-btn layui-btn-primary my-cancel-button">取消</button>
+            <button class="layui-btn" lay-submit="" lay-filter="modify-form">保存修改</button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+
 <script>
   layui.use(['laypage', 'layer', 'form', 'table'], function () {
     var laypage = layui.laypage
         , layer = layui.layer
         , table = layui.table
+        , form = layui.form
     ;
 
     table.render({
@@ -27,6 +167,8 @@
         {field: 'name', title: 'service名称', sort: true, minWidth: 120}
         , {field: 'language', title: '语言类型', width: 100}
         , {field: 'description', title: '描述', minWidth: 150}
+
+        , {fixed: 'right', title: '操作', width: 120, align: 'center', toolbar: '#barDemo'}
       ]]
       , id: 'serviceListTable'
     });
@@ -51,5 +193,218 @@
       })
 
     }
+
+      /*
+       * 监听表格事件
+       */
+      // 排序事件
+      table.on('sort(tableEvent)', function(obj){
+        table.reload('serviceListTable', {
+          initSort: obj //记录初始排序，如果不设的话，将无法标记表头的排序状态。
+          ,where: { //请求参数（注意：这里面的参数可任意定义，并非下面固定的格式）
+            sort_field: obj.field //排序字段
+            ,order: obj.type //排序方式
+          }
+        });
+      });
+
+      table.on('tool(tableEvent)', function (obj) {
+        //注：tool 是工具条事件名，tableEvent 是 table 原始容器的属性 lay-filter="对应的值"
+        var data = obj.data //获得当前行数据
+          , layEvent = obj.event; //获得 lay-event 对应的值
+        if (layEvent === 'del') {
+          handleDelete(obj);
+        } else if (layEvent === 'edit') {
+          handleModify(obj);
+        }
+      });
+
+      function handleCreate(layerIdx, postdata) {
+        var loadingLayerIdx = layer.load(2, {
+          shade: [0.3]
+        });
+        $.ajax({
+          url: '{% url "api_microservice" %}',
+          type: "POST",
+          dataType: "json",
+          data: postdata,
+        }).done(result => {
+          layer.msg('提交成功', {
+            icon: 1,
+            time: 1000 //2秒关闭（如果不配置，默认是3秒）
+          }, function () {
+            handleReloadTable();
+            layer.close(layerIdx);
+          });
+        }).fail((xhr, status, error) => {
+          // 移除disabled属性  提交按钮可点击
+          $('#service-create-form button[lay-submit]').removeClass('layui-btn-disabled');
+          ajaxErrorHandle(xhr, status, error);
+        }).always(() => {
+          // close loading
+          layer.close(loadingLayerIdx);
+        })
+        return false;
+      }
+
+      $('#create-form-button').click(function () {
+        /* 再弹出添加界面 */
+        var layerIdx = layer.open({
+          type: 1,
+          title: '新增',
+          area: ["50%", "70%"],
+          content: $("#service-create").html(),
+          shadeClose: true, // 点击弹出层的shade可关闭弹出层
+          success: () => {
+            // 移除disabled属性
+            $('#service-create-form button[lay-submit]').removeClass('layui-btn-disabled');
+          }
+        });
+
+        // 取消时关闭弹出层
+        $('#service-create-form .my-cancel-button').click(() => {
+          layer.close(layerIdx);
+          return false; // 阻止浏览器自动跳转
+        })
+        /* 渲染表单 */
+        form.render(null, 'create');
+        form.verify({
+          name: (value) => {
+            let val = value.trim();
+            if (!val) {
+              return '服务名不能为空';
+            }
+            if (!/[/^[\w.\-_]{3,40}$/.test(val)) {
+              return '3~40个字符, 大小写字母数字和下划线小数点'
+            }
+          }
+          , language: (value) => {
+            let val = value.trim();
+            if (!val) {
+              return '不能为空';
+            }
+          }
+          , build_url: (value) => {
+            let val = value.trim();
+            if (!val) {
+              return '不能为空';
+            } else if (!(val.startsWith('http://') || val.startsWith('https://'))) {
+              return 'url地址格式不正确，必须以http/https开头';
+            }
+          }
+
+        });
+        //监听提交
+        form.on('submit(create-form)', function (data) {
+          $(this).addClass('layui-btn-disabled');
+          handleCreate(layerIdx, data.field);
+          return false; // 阻止浏览器自动跳转
+        });
+      });
+
+    /*
+       * 编辑 删除
+       */
+      function handleDelete(obj) {
+        layer.confirm('确定删除？删除后不可恢复！', {icon: 0, title:'提示'}, function (index) {
+          layer.close(index);
+          var loadingLayerIdx = layer.load(2, {
+            shade: [0.3]
+          });
+          var url = '{% url "api_microservice_manage" 0 %}';
+          url = url.substr(0, url.lastIndexOf(0));
+          url +=  obj.data.id + '/';
+          $.ajax({
+            url: url,
+            type: "DELETE",
+          }).done(result => {
+            layer.msg('删除成功', {icon: 1});
+            obj.del(); //删除对应行（tr）的DOM结构
+          }).fail((xhr, status, error) => {
+            layer.msg('删除失败: ' + (xhr.status >= 500 ? '服务器内部错误' : xhr.responseJSON.msg), {icon: 2});
+          }).always(() => {
+            layer.close(loadingLayerIdx);
+          });
+        })
+      }
+
+      function handleModify(obj) {
+        /* 弹出修改界面 */
+        var data = obj.data;
+        var layerIdx = layer.open({
+          type: 1, // 0（信息框，默认）1（页面层）2（iframe层）3（加载层）4（tips层）
+          title: '修改服务',
+          area: ["50%", "70%"],
+          content: $("#service-modify").html(),
+          shadeClose: true, // 点击弹出层的shade可关闭弹出层
+          success: () => {
+            // 移除disabled属性  提交按钮可点击
+            $('#service-modify-form button[lay-submit]').removeClass('layui-btn-disabled');
+          }
+        });
+
+        // 取消时关闭弹出层
+        $('#service-modify-form .my-cancel-button').click(() => {
+          layer.close(layerIdx);
+          return false; // 阻止浏览器自动跳转
+        })
+         //表单初始赋值
+        form.val('modify', {
+          "name": data.name // "name": "value"
+          ,"language": data.language
+          ,"build_orig": data.build_orig
+          ,"build_url": data.build_url
+          ,"description": data.description
+        })
+
+        /* 渲染表单 */
+        form.render(null, 'modify');
+        form.render('select', 'modify');
+
+        form.verify({
+          build_url: (value) => {
+            let val = value.trim();
+            if (!val) {
+              return '不能为空';
+            } else if (!val.startsWith('http://') || !val.startsWith('https://')) {
+              return 'url地址格式不正确，必须以http/https开头';
+            }
+          }
+        });
+        //监听提交
+        form.on('submit(modify-form)', function (data) {
+          $(this).addClass('layui-btn-disabled');
+          var loadingLayerIdx = layer.load(2, {
+            shade: [0.3]
+          });
+          var url = '{% url "api_microservice_manage" 0 %}';
+          url = url.substr(0, url.lastIndexOf(0));
+          url +=  obj.data.id + '/';
+
+          $.ajax({
+            url: url,
+            type: "POST",
+            dataType: "json",
+            data: data.field,
+
+          }).done(result => {
+            layer.msg('提交成功', {
+              icon: 1,
+              time: 1000 //2秒关闭（如果不配置，默认是3秒）
+            }, function () {
+              layer.close(layerIdx);
+              handleReloadTable(false);
+            });
+          }).fail((xhr, status, error) => {
+            // 移除disabled属性  提交按钮可点击
+            $('#service-modify-form button[lay-submit]').removeClass('layui-btn-disabled');
+            layer.msg('提交失败: ' + (xhr.status >= 500 ? '服务器内部错误' : xhr.responseJSON.msg), {icon: 2});
+          }).always(() => {
+            layer.close(loadingLayerIdx);
+          })
+          return false;
+        });
+      }
   })
 </script>
+</body>

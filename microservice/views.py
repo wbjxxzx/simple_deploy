@@ -59,6 +59,7 @@ class ServiceApi(generic.View):
             MicroService.objects.get(name=d['name'])
         except MicroService.DoesNotExist:
             d['created_by'] = request.user
+            d['updated_by'] = request.user
             MicroService.objects.create(**d)
             return JsonResponse({}, status=201)
         else:
