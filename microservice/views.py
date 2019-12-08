@@ -9,6 +9,8 @@ from django.core.paginator import Paginator
 from microservice.models import *
 from django.utils.timezone import localtime, utc, now
 from django.db.models import Count
+import time
+import requests
 
 class ServicePageView(generic.ListView):
     template_name = 'microservice/service.html'
@@ -92,3 +94,73 @@ class ServiceManageApi(generic.View):
             return JsonResponse({'msg': '该服务有关联的版本, 不允许删除'}, status=417)
         svcs.delete()
         return JsonResponse({})
+
+
+class ServiceVersionPageView(generic.DetailView):
+    template_name = 'microservice/version.html'
+    model = MicroService
+    pk_url_kwarg = 'service_id'
+
+
+class ServiceVersionApi(generic.View):
+    def get(self, request, service_id):
+        query = request.GET
+        page = int(query.get('page', 1))
+        limit = int(query.get('limit', 20))
+
+        try:
+            service = MicroService.objects.get(pk=service_id)
+        except MicroService.DoesNotExist:
+            return JsonResponse({'msg': '资源不存在'}, status=404)
+
+        versions = MicroServiceVersion.objects.filter(microservice=service)
+        paginator = Paginator(versions, limit)
+        pdata = paginator.page(page)
+        data = [{
+            'id': item.id,
+            'name': item.microservice.name,
+            'language': item.microservice.language,
+            'description': item.description,
+            'version': item.version,
+            'status': item.get_status_display(),
+            'created_by': item.created_by.username,
+            'created': item.created,
+        } for item in pdata]
+
+        return JsonResponse({
+            'data': data,
+            'count': versions.count(),
+            'code': 0,
+        })
+
+    def post(self, request, service_id):
+        ref = request.POST.get('branch', 'master').strip()
+        desc = request.POST.get('description', '').strip()
+        try:
+            service = MicroService.objects.get(pk=service_id)
+        except MicroService.DoesNotExist:
+            return JsonResponse({'msg': '资源不存在'}, status=404)
+
+        version = MicroServiceVersion.objects.create(
+            microservice=service,
+            version='building-' + str(time.time()),
+            created_by=request.user,
+            description=desc,
+            ref=ref
+        )
+
+        build_params = {
+            'variables[SERVICE_ID]': service.id,
+            'variables[VERSION_ID]': version.id,
+            'variables[SERVICE_NAME]': service.name,
+            'variables[USERNAME]': request.user.username,
+        }
+        try:
+            r = requests.post(service.build_url, data=build_params, timeout=10)
+        except requests.exceptions.Timeout:
+            return JsonResponse({'msg': '调用git 超时'}, status=417)
+
+        if r.status_code >= 200 and r.status_code < 300:
+            rdata = r.json()
+            return JsonResponse(rdata, status=200)
+        return JsonResponse({'msg': '创建任务失败{}'.format(r.content)})

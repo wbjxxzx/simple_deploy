@@ -4,7 +4,7 @@
 </head>
 <body>
   <div class="layui-row">
-    <div class="layui-col-md2 layui-col-md-offset4">
+    <div class="layui-col-md2 layui-col-md-offset10">
       <button id="create-form-button" class="layui-btn" style="float: right;">
         <i class="layui-icon layui-icon-add-1"></i> 添加
       </button>
@@ -76,6 +76,7 @@
   </div>
 <table class="layui-hide" id="service-list-table" lay-filter="tableEvent"></table>
   <script type="text/html" id="barDemo">
+    <a class="layui-btn layui-btn-xs" lay-event="version">版本管理</a>
     <a class="layui-btn layui-btn-xs layui-btn-primary" lay-event="edit">编辑</a>
     <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
   </script>
@@ -168,7 +169,7 @@
         , {field: 'language', title: '语言类型', width: 100}
         , {field: 'description', title: '描述', minWidth: 150}
 
-        , {fixed: 'right', title: '操作', width: 120, align: 'center', toolbar: '#barDemo'}
+        , {fixed: 'right', title: '操作', width: 240, align: 'center', toolbar: '#barDemo'}
       ]]
       , id: 'serviceListTable'
     });
@@ -216,8 +217,22 @@
           handleDelete(obj);
         } else if (layEvent === 'edit') {
           handleModify(obj);
+        } else if (layEvent === 'version'){
+          handleShowVersion(obj);
         }
       });
+
+      function handleShowVersion(obj) {
+        var url = '{% url "page_service_versions" 0 %}';
+        url = url.replace('0', obj.data.id);
+        layer.open({
+          title: '[' + obj.data.name + ']版本信息',
+          type: 2,
+          content: url,
+          area: ["80%", "100%"],
+          shadeClose: true,
+        })
+      }
 
       function handleCreate(layerIdx, postdata) {
         var loadingLayerIdx = layer.load(2, {
