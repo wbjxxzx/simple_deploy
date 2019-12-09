@@ -1,0 +1,233 @@
+<head>
+<link rel="stylesheet" type="text/css" href="/static/js/layui/css/layui.css" />
+</head>
+<body>
+<div>
+  </div>
+  <div class="layui-row">
+    <div class="layui-col-md2 layui-col-md-offset10">
+      <button id="build-form-button" class="layui-btn" style="float: right;">
+        <i class="layui-icon layui-icon-add-1"></i> 构建
+      </button>
+    </div>
+  </div>
+
+
+<table class="layui-hide" id="version-list-table" lay-filter="tableEvent"></table>
+
+  <script type="text/html" id="barDemo">
+    <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
+  </script>
+
+<!-- 需要弹出的界面 -->
+  <div class="layui-row" id="version-build" style="display: none;">
+    <div class="layui-col-md10">
+      <form id="version-build-form" class="layui-form" lay-filter="build"> <!-- 提示：如果你不想用form，你可以换成div等任何一个普通元素 -->
+        <div class="layui-form-item">
+          <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 服务名称</label>
+          <div class="layui-input-block">
+            <label class="layui-input" style="background-color: #eee; cursor: not-allowed;" >{{ microservice.name }}</label>
+          </div>
+        </div>
+
+        <div class="layui-form-item">
+          <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 构建分支</label>
+          <div class="layui-input-block">
+            <input type="text"
+                   name="branch"
+                   placeholder="请输入构建分支,默认 master"
+                   autocomplete="off"
+                   class="layui-input"
+                   lay-verify="branch"
+            />
+          </div>
+        </div>
+
+        <div class="layui-form-item layui-form-text">
+          <label class="layui-form-label">描述</label>
+          <div class="layui-input-block">
+            <textarea rows="5" name="description" placeholder="请输入内容" class="layui-textarea"></textarea>
+          </div>
+        </div>
+
+        <div class="layui-form-item">
+          <div class="layui-input-block">
+            <button class="layui-btn layui-btn-primary my-cancel-button">取消</button>
+            <button class="layui-btn" lay-submit="" lay-filter="build-form">立即提交</button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+
+<script src="/static/js/layui/layui.js"></script>
+<script>
+  layui.use(['laypage', 'layer', 'form', 'table'], function () {
+    var laypage = layui.laypage
+        , layer = layui.layer
+        , table = layui.table
+        , form = layui.form
+    ;
+
+    table.render({
+      elem: '#version-list-table'
+      , url: '{% url "api_microservice_versions" microservice.id %}'
+      , cellMinWidth: 80
+      , autoSort: false
+      , page: {
+        curr: 1
+        , limit: 20
+        , limits: [20, 30, 40, 50, 100]
+        , layout: ['count', 'prev', 'page', 'next', 'limit', 'skip']
+        , jump: function (obj) {
+
+        }
+      }
+      , cols: [[
+        {field: 'name', title: 'service名称', sort: true, minWidth: 120}
+        , {field: 'language', title: '语言类型', width: 100}
+        , {field: 'version', title: '版本', width: 100}
+        , {field: 'description', title: '描述', minWidth: 150}
+        , {field: 'created', title: '创建时间', minWidth: 150}
+
+        , {fixed: 'right', title: '操作', width: 120, align: 'center', toolbar: '#barDemo'}
+      ]]
+      , id: 'versionListTable'
+    });
+    /*
+     * 搜索与重载
+     */
+    var $ = layui.$, active = {
+      reload: handleReloadTable
+    };
+
+    function handleReloadTable() {
+      table.reload('versionListTable', {
+        page: {curr: 1}
+      })
+    }
+
+      /*
+       * 监听表格事件
+       */
+      // 排序事件
+      table.on('sort(tableEvent)', function(obj){
+        table.reload('versionListTable', {
+          initSort: obj //记录初始排序，如果不设的话，将无法标记表头的排序状态。
+          ,where: { //请求参数（注意：这里面的参数可任意定义，并非下面固定的格式）
+            sort_field: obj.field //排序字段
+            ,order: obj.type //排序方式
+          }
+        });
+      });
+
+      table.on('tool(tableEvent)', function (obj) {
+        //注：tool 是工具条事件名，tableEvent 是 table 原始容器的属性 lay-filter="对应的值"
+        var data = obj.data //获得当前行数据
+          , layEvent = obj.event; //获得 lay-event 对应的值
+        if (layEvent === 'del') {
+          handleDelete(obj);
+        } else if (layEvent === 'edit') {
+          handleModify(obj);
+        }
+      });
+
+
+
+      /*
+       * 编辑 删除
+       */
+      function handleDelete(obj) {
+        layer.confirm('确定删除？删除后不可恢复！', {icon: 0, title:'提示'}, function (index) {
+          layer.close(index);
+          var loadingLayerIdx = layer.load(2, {
+            shade: [0.3]
+          });
+          var url = '{% url "api_microservice_manage" 0 %}';
+          url = url.substr(0, url.lastIndexOf(0));
+          url +=  obj.data.id + '/';
+          $.ajax({
+            url: url,
+            type: "DELETE",
+          }).done(result => {
+            layer.msg('删除成功', {icon: 1});
+            obj.del(); //删除对应行（tr）的DOM结构
+          }).fail((xhr, status, error) => {
+            layer.msg('删除失败: ' + (xhr.status >= 500 ? '服务器内部错误' : xhr.responseJSON.msg), {icon: 2});
+          }).always(() => {
+            layer.close(loadingLayerIdx);
+          });
+        })
+      }
+
+      function handleBuild(layerIdx, postdata) {
+        var loadingLayerIdx = layer.load(2, {
+          shade: [0.3]
+        });
+        $.ajax({
+          url: '{% url "api_microservice_versions" microservice.id %}',
+          type: "POST",
+          dataType: "json",
+          data: postdata,
+        }).done(result => {
+          layer.msg('提交成功', {
+            icon: 1,
+            time: 1000 //2秒关闭（如果不配置，默认是3秒）
+          }, function () {
+            handleReloadTable();
+            layer.close(layerIdx);
+          });
+        }).fail((xhr, status, error) => {
+          // 移除disabled属性  提交按钮可点击
+          $('#version-build-form button[lay-submit]').removeClass('layui-btn-disabled');
+          ajaxErrorHandle(xhr, status, error);
+        }).always(() => {
+          // close loading
+          layer.close(loadingLayerIdx);
+        })
+        return false;
+      }
+
+      $('#build-form-button').click(function () {
+        /* 再弹出添加界面 */
+        var layerIdx = layer.open({
+          type: 1,
+          title: '新增',
+          area: ["50%", "70%"],
+          content: $("#version-build").html(),
+          shadeClose: true, // 点击弹出层的shade可关闭弹出层
+          success: () => {
+            // 移除disabled属性
+            $('#version-build-form button[lay-submit]').removeClass('layui-btn-disabled');
+          }
+        });
+
+        // 取消时关闭弹出层
+        $('#version-build-form .my-cancel-button').click(() => {
+          layer.close(layerIdx);
+          return false; // 阻止浏览器自动跳转
+        })
+        /* 渲染表单 */
+        form.val('build', {'branch': 'master'})
+        form.render(null, 'build');
+        form.verify({
+          branch: (value) => {
+            let val = value.trim();
+            if (!val) {
+              return '不能为空';
+            }
+          }
+
+        });
+        //监听提交
+        form.on('submit(build-form)', function (data) {
+          $(this).addClass('layui-btn-disabled');
+          handleBuild(layerIdx, data.field);
+          return false; // 阻止浏览器自动跳转
+        });
+      });
+  })
+</script>
+</body>
