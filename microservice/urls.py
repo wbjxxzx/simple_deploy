@@ -11,6 +11,9 @@ pages = [
     url(r'^service/(?P<service_id>[0-9]+)/versions/$',
         views.ServiceVersionPageView.as_view(),
         name='page_service_versions'),
+    url(r'^service/versions/(?P<pk>[0-9]+)/(?P<action>[a-z]+)/$',
+        views.VersionDeployPageView.as_view(),
+        name='page_version_deploy'),
 ]
 
 apis = [
@@ -20,6 +23,12 @@ apis = [
 
     # 构建版本任务接收
     url(r'^microservice/task/receive/webhook/$', views.GitWebhookReceiver.as_view()),
+
+    # 发布
+    url(r'^api/microservice/(?P<service_id>[0-9]+)/inst/$', views.InstanceApi.as_view(), name='api_microservice_inst'),
+    url(r'^api/microservice/(?P<service_id>[0-9]+)/(?P<action>[a-z]+)/version/(?P<pk>[0-9]+)/$',
+        views.ServiceVersionDeployActionApi.as_view(),
+        name='api_microservice_version_deploy_action'),
 ]
 
 urlpatterns = pages + apis

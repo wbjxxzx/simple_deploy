@@ -164,3 +164,21 @@ class ServiceVersionApi(generic.View):
             rdata = r.json()
             return JsonResponse(rdata, status=200)
         return JsonResponse({'msg': '创建任务失败{}'.format(r.content)})
+
+
+class InstanceApi(generic.View):
+    def get(self, request, service_id):
+        pass
+
+
+class VersionDeployPageView(generic.DetailView):
+    template_name = 'microservice/version_deploy.html'
+    model = MicroServiceVersion
+
+
+class VersionDeployActionApi(generic.View):
+    def get(self, request, service_id, action, pk):
+        pass
+
+    def post(self, request, service_id, action, pk):
+        pass

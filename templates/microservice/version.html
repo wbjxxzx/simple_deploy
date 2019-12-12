@@ -1,7 +1,6 @@
-<head>
-<link rel="stylesheet" type="text/css" href="/static/js/layui/css/layui.css" />
-</head>
-<body>
+{% extends '__base.html' %}
+
+{% block content %}
 <div>
   </div>
   <div class="layui-row">
@@ -16,6 +15,8 @@
 <table class="layui-hide" id="version-list-table" lay-filter="tableEvent"></table>
 
   <script type="text/html" id="barDemo">
+    <a class="layui-btn layui-btn-primary layui-btn-xs" lay-event="upgrade">升级</a>
+    <a class="layui-btn layui-btn-warm layui-btn-xs" lay-event="revert">回退</a>
     <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
   </script>
 
@@ -61,8 +62,9 @@
     </div>
   </div>
 
+{% endblock %}
 
-<script src="/static/js/layui/layui.js"></script>
+{% block footer %}
 <script>
   layui.use(['laypage', 'layer', 'form', 'table'], function () {
     var laypage = layui.laypage
@@ -70,6 +72,8 @@
         , table = layui.table
         , form = layui.form
     ;
+
+    var selfIndex = parent.layer.getFrameIndex(window.name); //先得到当前iframe层的索引
 
     table.render({
       elem: '#version-list-table'
@@ -131,6 +135,10 @@
           handleDelete(obj);
         } else if (layEvent === 'edit') {
           handleModify(obj);
+        } else if (layEvent === 'upgrade') {
+          handleUpgrade(obj);
+        } else if (layEvent === 'revert') {
+          handleRevert(obj);
         }
       });
 
@@ -228,6 +236,36 @@
           return false; // 阻止浏览器自动跳转
         });
       });
+
+      function handleUpgrade(obj) {
+        var url = '{% url "page_version_deploy" 0 "upgrade"%}';
+        url = url.replace('0', obj.id);
+        parent.layer.open({
+          title: '升级',
+          type: 2, // 0（信息框，默认）1（页面层）2（iframe层）3（加载层）4（tips层）
+          content: url,    // 设置跳转的url，跳转到对应的页面
+          area: ["50%", "60%"],
+          shadeClose: true, // 点击弹出层的shade可关闭弹出层
+          end: () => {
+            // 弹出层被销毁时执行
+          }
+        })
+      }
+
+      function handleRevert(obj) {
+        var url = '{% url "page_version_deploy" 0 "revert"%}';
+        url = url.replace('0', obj.id);
+        parent.layer.open({
+          title: '回退',
+          type: 2, // 0（信息框，默认）1（页面层）2（iframe层）3（加载层）4（tips层）
+          content: url,    // 设置跳转的url，跳转到对应的页面
+          area: ["50%", "60%"],
+          shadeClose: true, // 点击弹出层的shade可关闭弹出层
+          end: () => {
+            // 弹出层被销毁时执行
+          }
+        })
+      }
   })
 </script>
-</body>
+{% endblock %}
