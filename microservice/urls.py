@@ -18,6 +18,8 @@ apis = [
     url(r'^api/microservice/(?P<pk>[0-9]+)/$', views.ServiceManageApi.as_view(), name='api_microservice_manage'),
     url(r'^api/microservice/(?P<service_id>[0-9]+)/versions/$', views.ServiceVersionApi.as_view(), name='api_microservice_versions'),
 
+    # 构建版本任务接收
+    url(r'^microservice/task/receive/webhook/$', views.GitWebhookReceiver.as_view()),
 ]
 
 urlpatterns = pages + apis
