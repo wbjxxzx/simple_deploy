@@ -1,0 +1,230 @@
+{% extends '__base.html' %}
+
+{% block content %}
+<!-- 升级/回退 -->
+    <form id="service-deploy-form" class="layui-form" lay-filter="deploy" style="display: none;">
+
+      <div class="layui-form-item">
+        <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 名称</label>
+        <div class="layui-input-block">
+          <input type="text"
+                 name="name"
+                 value="{{ microserviceversion.microservice.name }}"
+                 autocomplete="off"
+                 class="layui-input"
+                 disabled
+                 style="background-color: #eee; cursor: not-allowed;"
+          />
+        </div>
+      </div>
+
+
+      <div class="layui-form-item">
+        <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 版本号</label>
+        <div class="layui-input-block">
+          <select id="service-deploy-form-host" name="dest_version" lay-verify="required" lay-search>
+
+          </select>
+        </div>
+      </div>
+
+      <div class="layui-form-item">
+        <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 选择主机</label>
+        <div class="layui-input-block">
+          <input type="text"
+                 name="host"
+                 lay-verify="host"
+                 class="layui-input"
+                 disabled
+                 style="background-color: #eee; cursor: not-allowed; display: none;">
+          <table class="layui-hide" id="version-deploy-table" lay-filter="tableEvent"></table>
+        </div>
+      </div>
+
+      <div class="layui-form-item">
+        <div class="layui-input-block">
+          <button class="layui-btn layui-btn-primary my-cancel-button">取消</button>
+          <button class="layui-btn" lay-submit="" lay-filter="deploy-form">立即提交</button>
+        </div>
+      </div>
+
+
+    </form>
+{% endblock %}
+
+{% block footer %}
+<script>
+layui.use(['form', 'table', 'formSelects'],function () {
+  var form = layui.form
+    , table = layui.table //表格
+    , formSelects = layui.formSelects // 多选
+  // ;
+  var $ = layui.$;
+  var selfIndex = parent.layer.getFrameIndex(window.name); //先得到当前iframe层的索引
+  var pathnames = location.pathname.split('/');
+  // 获取url里的动作名称
+  var actionName = pathnames.pop();
+  if (actionName === '' || actionName.startsWith('?')) {
+    actionName = pathnames.pop();
+  }
+
+  if (actionName === 'install') {
+    $('#service-install-form').show();
+    ajaxRenderSelect()
+  } else {
+    $('#service-deploy-form').show();
+    ajaxRenderTable();
+    ajaxRenderVersion();
+  }
+
+  // 取消时关闭弹出层
+  $('.my-cancel-button').click(() => {
+    parent.layer.close(selfIndex);
+    return false; // 阻止浏览器自动跳转
+  });
+
+   /*
+   * 待升级表格
+   */
+  function ajaxRenderTable() {
+    //执行一个 table 实例
+    var tableData = [];
+    table.render({
+      elem: '#version-deploy-table'
+      , url: '{% url "api_microservice_inst" microserviceversion.microservice.id %}'
+      //, cellMinWidth: 80 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
+      ,autoSort: false //禁用前端自动排序
+      , page: false
+      , curr: 1
+      , limit: 100
+      , where: {locked: 0, version_id: {{ microserviceversion.id }} }
+      //, toolbar: 'default' //开启工具栏，此处显示默认图标，可以自定义模板，详见文档
+      //, defaultToolbar: []
+      , cols: [[ //表头
+        {type: 'checkbox', fixed: 'left'}
+        , {field: 'host', title: '主机', minWidth: 150}
+        , {field: 'port', title: '端口', minWidth: 80}
+        , {field: 'version', title: '版本号', minWidth: 120}
+      ]]
+      , done: res => {
+        tableData = res.data;
+      }
+    });
+
+
+    var ids = [];
+    var hostItemVal = '';
+    //监听复选框事件
+    table.on('checkbox(tableEvent)', function(obj){
+      //console.log(obj.checked); //当前是否选中状态
+      //console.log(obj.data); //选中行的相关数据
+      //console.log(obj.type); //如果触发的是全选，则为：all，如果触发的是单选，则为：one
+      if(obj.checked ){
+        if(obj.type === 'one'){
+          ids.push(obj.data.host_id);
+        } else {
+          hostItemVal = 'all';
+          ids = tableData.map(item => item.host_id);
+        }
+      } else {
+        hostItemVal = '';
+        if(obj.type === 'one'){
+          var idx = ids.indexOf(obj.data.host_id);
+          if(idx !== -1){
+            ids.splice(idx, 1);
+          }
+        } else {
+          ids.splice(0, ids.length);
+        }
+      }
+      hostItemVal = hostItemVal ? hostItemVal : ids;
+      $('input[name=host]').val(hostItemVal);
+    });
+  }
+
+  function ajaxRenderVersion() {
+    // 生成下拉框
+    var url = '{% url "api_microservice_version_deploy_action" microserviceversion.microservice.id "action" microserviceversion.id %}';
+    console.log(url);
+    url = url.replace('action', actionName);
+    $.ajax({
+      url: url,
+      type: 'GET',
+    }).done(result => {
+      var list = result.data;    //返回的数据
+      var options = '<option value="">直接选择或搜索选择</option>';
+
+      list.forEach(item => {
+        var option = '<option value="' + item.id + '"';
+        option += item.enable ? '' : 'disabled';
+        option += '>' + item.version + '</option>';
+        options += option;
+      });
+      $('#service-deploy-form-host').empty().append(options);
+      console.log(options);
+    }).fail((xhr, status, error) => {
+      if (error === 'Unauthorized'){
+        loginFormIframe();
+      }
+      else {
+        layer.close(selfIndex);
+        parent.layer.msg('获取数据失败，请稍候再试', {icon: 2});
+      }
+    }).then(() => {
+      /* 渲染表单 */
+      form.render('select', 'deploy'); // 刷新select，显示出数据
+      // 移除disabled属性
+      $('#service-deploy-form button[lay-submit]').removeClass('layui-btn-disabled');
+
+      form.val({
+        action: actionName,
+      })
+      form.verify({
+        host: value => {
+          let val = value.trim();
+          if (!val) {
+            return '请选择主机';
+          }
+        }
+      })
+      //监听提交
+      form.on('submit(deploy-form)', function (data) {
+        $(this).addClass('layui-btn-disabled');
+        // loading
+        var loadingLayerIdx = layer.load(2, {
+          shade: [0.3]
+        });
+
+        $.ajax({
+          url: url,
+          type: "POST",
+          dataType: "json",
+          data: data.field,
+        }).done(result => {
+          parent.layer.close(selfIndex);
+          parent.layer.msg('提交成功', {
+            icon: 1,
+            time: 1000 //2秒关闭（如果不配置，默认是3秒）
+          }, function () {
+
+          });
+          // 刷新表格（即点击分页控件的“确定”按钮）
+            parent.$('.layui-laypage-btn').click();
+        }).fail((xhr, status, error) => {
+          // 移除disabled属性  提交按钮可点击
+          $('#service-deploy-form button[lay-submit]').removeClass('layui-btn-disabled');
+          ajaxErrorHandle(xhr, status, error, frameIdx=null);
+        }).always(() => {
+          // close loading
+          layer.close(loadingLayerIdx);
+        })
+        return false;
+      });
+
+    })
+
+  }
+
+});
+</script>
+{% endblock %}

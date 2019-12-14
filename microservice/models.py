@@ -55,6 +55,7 @@ class MicroServiceVersion(models.Model):
     class Meta:
         db_table = 'micro_service_version'
         unique_together = (('microservice', 'version'), )
+        ordering = ['-id']
 
 
 @unique

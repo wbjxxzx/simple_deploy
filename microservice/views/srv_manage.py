@@ -8,9 +8,11 @@ from django.http import JsonResponse
 from django.core.paginator import Paginator
 from microservice.models import *
 from django.utils.timezone import localtime, utc, now
-from django.db.models import Count
+from django.db.models import Count, ObjectDoesNotExist
 import time
 import requests
+import re
+
 
 class ServicePageView(generic.ListView):
     template_name = 'microservice/service.html'
@@ -124,7 +126,7 @@ class ServiceVersionApi(generic.View):
             'version': item.version,
             'status': item.get_status_display(),
             'created_by': item.created_by.username,
-            'created': item.created,
+            'created': localtime(item.created).strftime('%Y-%m-%d %H:%M:%S %Z'),
         } for item in pdata]
 
         return JsonResponse({
@@ -164,3 +166,127 @@ class ServiceVersionApi(generic.View):
             rdata = r.json()
             return JsonResponse(rdata, status=200)
         return JsonResponse({'msg': '创建任务失败{}'.format(r.content)})
+
+
+class InstanceApi(generic.View):
+    def get(self, request, service_id):
+        query = request.GET
+        version_id = query.get('version_id')
+        locked = query.get('locked')
+
+        try:
+            service = MicroService.objects.get(pk=service_id)
+        except MicroService.DoesNotExist:
+            return JsonResponse({'msg': '资源不存在'}, status=404)
+
+        insts = MicroServiceInstance.objects.filter(microservice=service)
+        if version_id:
+            insts = insts.filter(version_id=version_id)
+
+        insts = insts.select_related('version').select_related('host').select_related('updated_by')
+
+        if locked is not None:
+            lck = False if locked in ('0', 'false') else True
+            insts = insts.filter(locked=lck)
+
+        data = [{
+            'id': item.id,
+            'name': service.name,
+            'language': service.language,
+            'version': item.version.version,
+            'host': ':'.join((item.host.hostname, item.host.ip)),
+            'host_id': item.host_id,
+            'port': item.port,
+            'tag': item.tag,
+            'weight': item.weight,
+            'description': item.description,
+            'status': item.status,
+            'status_str': item.get_status_display(),
+            'is_maintain': item.is_maintain,
+            'updated_by': item.updated_by.username,
+            'updated': localtime(item.updated).strftime('%Y-%m-%d %H:%M:%S %Z'),
+        } for item in insts]
+
+        return JsonResponse({
+            'data': data,
+            'count': insts.count(),
+            'code': 0,
+        })
+
+
+class VersionDeployPageView(generic.DetailView):
+    template_name = 'microservice/version_deploy.html'
+    model = MicroServiceVersion
+
+
+class VersionDeployActionApi(generic.View):
+    def get(self, request, service_id, action, pk):
+        if action not in ('upgrade', 'revert'):
+            return JsonResponse({'msg': '仅支持 upgrade/revert', 'code': -1}, status=417)
+
+        cur_id = int(pk)
+        versions = MicroServiceVersion.objects.filter(
+            microservice_id=service_id,
+            status=BuildStatus.success.value
+        ).order_by('-id')
+
+        data = [{
+            'id': item.id,
+            'version': item.version,
+            'enable': item.id > cur_id if action == 'upgrade' else cur_id > item.id,
+        } for item in versions]
+
+        return JsonResponse({
+            'data': data,
+            'count': versions.count(),
+            'code': 0,
+        })
+
+    def post(self, request, service_id, action, pk):
+        params = request.POST
+        q = {}
+        q['dest_version'] = params.get('dest_version', '')
+        q['host'] = params.get('host', '')
+
+        if not q['dest_version']:
+            return JsonResponse({'msg': '版本号不能为空'}, status=417)
+
+        if not q['host']:
+            return JsonResponse({'msg': '主机不能为空'}, status=417)
+        else:
+            if q['host'] != 'all' and (not re.match(r'[0-9,]', q['host'])):
+                return JsonResponse({'msg': '主机参数错误，请传入 all 或以逗号分隔的id值'}, status=417)
+
+        # 先获取服务
+        try:
+            service = MicroService.objects.get(pk=service_id)
+            insts = MicroServiceInstance.objects.select_related('host').select_related('version').filter(version__id=pk)
+            dest_ver = MicroServiceVersion.objects.filter(microservice=service).get(pk=q['dest_version'])
+        except ObjectDoesNotExist:
+            return JsonResponse({'msg': '资源不存在'}, status=404)
+
+        db_idset = req_idset = set([x.host_id for x in insts])
+        if q['host'] != 'all':
+            req_idset = set([int(x) for x in q['host'].split(',') if x])
+        # 如果传入的主机id在 db 中不存在
+        if req_idset - db_idset:
+            return JsonResponse({'msg': '请发送正确的主机id'}, status=404)
+
+        # 只更新db中存在 且未锁定 的主机id
+        idset = db_idset & req_idset
+
+        st = InstanceStatus.upgrading.value if action == 'upgrade' else InstanceStatus.reverting.value
+        for inst in insts:
+            if inst.host_id in idset and not inst.locked:
+                d = {
+                    'updated_by': request.user,
+                    'updated': now(),
+                    'status': st,
+                    'locked': True,
+                }
+                print d
+                MicroServiceInstance.objects.filter(pk=inst.id).update(**d)
+
+        # TODO 发起任务
+
+        return JsonResponse({})
