@@ -104,7 +104,7 @@ layui.use(['form', 'table', 'formSelects'],function () {
         {type: 'checkbox', fixed: 'left'}
         , {field: 'host', title: '主机', minWidth: 150}
         , {field: 'port', title: '端口', minWidth: 80}
-        , {field: 'ver_num', title: '版本号', minWidth: 120}
+        , {field: 'version', title: '版本号', minWidth: 120}
       ]]
       , done: res => {
         tableData = res.data;
@@ -157,7 +157,7 @@ layui.use(['form', 'table', 'formSelects'],function () {
       list.forEach(item => {
         var option = '<option value="' + item.id + '"';
         option += item.enable ? '' : 'disabled';
-        option += '>' + item.ver_num + '</option>';
+        option += '>' + item.version + '</option>';
         options += option;
       });
       $('#service-deploy-form-host').empty().append(options);

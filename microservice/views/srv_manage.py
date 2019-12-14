@@ -168,7 +168,7 @@ class ServiceVersionApi(generic.View):
 
 class InstanceApi(generic.View):
     def get(self, request, service_id):
-        pass
+        return JsonResponse()
 
 
 class VersionDeployPageView(generic.DetailView):
@@ -178,7 +178,26 @@ class VersionDeployPageView(generic.DetailView):
 
 class VersionDeployActionApi(generic.View):
     def get(self, request, service_id, action, pk):
-        pass
+        if action not in ('upgrade', 'revert'):
+            return JsonResponse({'msg': '仅支持 upgrade/revert', 'code': -1}, status=417)
+
+        cur_id = int(pk)
+        versions = MicroServiceVersion.objects.filter(
+            microservice_id=service_id,
+            status=BuildStatus.success.value
+        ).order_by('-id')
+
+        data = [{
+            'id': item.id,
+            'version': item.version,
+            'enable': item.id > cur_id if action == 'upgrade' else cur_id > item.id,
+        } for item in versions]
+
+        return JsonResponse({
+            'data': data,
+            'count': versions.count(),
+            'code': 0,
+        })
 
     def post(self, request, service_id, action, pk):
         pass
