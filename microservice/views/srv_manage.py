@@ -124,7 +124,7 @@ class ServiceVersionApi(generic.View):
             'version': item.version,
             'status': item.get_status_display(),
             'created_by': item.created_by.username,
-            'created': item.created,
+            'created': localtime(item.created).strftime('%Y-%m-%d %H:%M:%S %Z'),
         } for item in pdata]
 
         return JsonResponse({

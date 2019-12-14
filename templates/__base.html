@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" type="text/css" href="/static/js/layui/css/layui.css" />
+  <link rel="stylesheet" type="text/css" href="/static/js/layui/ext/formSelects-v4.css" />
 
   {% block header %} {% endblock %}
 
@@ -13,7 +14,13 @@
   {% block content %}{% endblock %}
 
   <script src="/static/js/layui/layui.js"></script>
-
+  <script>
+    layui.config({
+      base: '/static/js/layui/ext/'
+    }).extend({
+      formSelects: 'formSelects-v4.min'
+    })
+  </script>
   {% block footer %} {% endblock %}
 </body>
 </html>

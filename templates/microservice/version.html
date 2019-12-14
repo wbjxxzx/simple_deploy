@@ -94,9 +94,9 @@
         , {field: 'language', title: '语言类型', width: 100}
         , {field: 'version', title: '版本', width: 100}
         , {field: 'description', title: '描述', minWidth: 150}
-        , {field: 'created', title: '创建时间', minWidth: 150}
+        , {field: 'created', title: '创建时间', minWidth: 160}
 
-        , {fixed: 'right', title: '操作', width: 120, align: 'center', toolbar: '#barDemo'}
+        , {fixed: 'right', title: '操作', width: 240, align: 'center', toolbar: '#barDemo'}
       ]]
       , id: 'versionListTable'
     });
@@ -239,7 +239,7 @@
 
       function handleUpgrade(obj) {
         var url = '{% url "page_version_deploy" 0 "upgrade"%}';
-        url = url.replace('0', obj.id);
+        url = url.replace('0', obj.data.id);
         parent.layer.open({
           title: '升级',
           type: 2, // 0（信息框，默认）1（页面层）2（iframe层）3（加载层）4（tips层）
@@ -254,7 +254,7 @@
 
       function handleRevert(obj) {
         var url = '{% url "page_version_deploy" 0 "revert"%}';
-        url = url.replace('0', obj.id);
+        url = url.replace('0', obj.data.id);
         parent.layer.open({
           title: '回退',
           type: 2, // 0（信息框，默认）1（页面层）2（iframe层）3（加载层）4（tips层）

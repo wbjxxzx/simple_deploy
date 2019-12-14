@@ -126,3 +126,5 @@ STATICFILES_DIRS = (
     ('js', os.path.join(STATIC_ROOT, 'js')),
     ('css', os.path.join(STATIC_ROOT, 'css')),
 )
+
+ALLOWED_HOSTS = ['*']
