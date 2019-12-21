@@ -16,6 +16,7 @@
 {% verbatim %}
   <script type="text/html" id="barDemo">
   {{#  if(d.status === 'success'){ }}
+    <a class="layui-btn layui-btn layui-btn-xs" lay-event="install">安装</a>
     <a class="layui-btn layui-btn-primary layui-btn-xs" lay-event="upgrade">升级</a>
     <a class="layui-btn layui-btn-warm layui-btn-xs" lay-event="revert">回退</a>
   {{#  } }}
@@ -143,6 +144,8 @@
           handleUpgrade(obj);
         } else if (layEvent === 'revert') {
           handleRevert(obj);
+        } else if (layEvent === 'install') {
+          handleInstall(obj);
         }
       });
 
@@ -261,6 +264,21 @@
         url = url.replace('0', obj.data.id);
         parent.layer.open({
           title: '回退',
+          type: 2, // 0（信息框，默认）1（页面层）2（iframe层）3（加载层）4（tips层）
+          content: url,    // 设置跳转的url，跳转到对应的页面
+          area: ["50%", "60%"],
+          shadeClose: true, // 点击弹出层的shade可关闭弹出层
+          end: () => {
+            // 弹出层被销毁时执行
+          }
+        })
+      }
+
+      function handleInstall(obj) {
+        var url = '{% url "page_version_deploy" 0 "install"%}';
+        url = url.replace('0', obj.data.id);
+        parent.layer.open({
+          title: '安装',
           type: 2, // 0（信息框，默认）1（页面层）2（iframe层）3（加载层）4（tips层）
           content: url,    // 设置跳转的url，跳转到对应的页面
           area: ["50%", "60%"],

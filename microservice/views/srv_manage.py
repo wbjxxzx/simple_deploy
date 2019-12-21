@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.core.paginator import Paginator
 from microservice.models import *
 from django.utils.timezone import localtime, utc, now
-from django.db.models import Count, ObjectDoesNotExist
+from django.db.models import Count, ObjectDoesNotExist, Q
 import time
 import requests
 import re
@@ -286,6 +286,82 @@ class VersionDeployActionApi(generic.View):
                 }
                 print d
                 MicroServiceInstance.objects.filter(pk=inst.id).update(**d)
+
+        # TODO 发起任务
+
+        return JsonResponse({})
+
+
+class AvailableHostApi(generic.View):
+    """
+    获取当前服务所有可用主机列表  未部署服务的设置 enalbe: true
+    """
+
+    def get(self, request, service_id):
+        deployed = MicroServiceInstance.objects.filter(microservice_id=service_id)
+        deployed_id_set = set([v.host_id for v in deployed])
+
+        data = [{
+            'id': item.id,
+            'ip': item.ip,
+            'hostname': item.hostname,
+            'enable': False if item.id in deployed_id_set else True
+        } for item in Asset.objects.all()]
+
+        return JsonResponse({
+            'data': data,
+            'count': len(data),
+            'code': 0,
+        })
+
+
+class VersionInstallApi(generic.View):
+
+    def post(self, request, service_id, pk):
+        comma_host_ids = request.POST.get('host', '').strip()
+
+        if not comma_host_ids:
+            return JsonResponse({'msg': '主机不能为空'}, status=417)
+        elif not re.match(r'[0-9,]', comma_host_ids):
+            return JsonResponse({'msg': '请发送正确的主机id'}, status=417)
+
+        try:
+            service = MicroService.objects.get(pk=service_id)
+            version = MicroServiceVersion.objects.get(pk=pk)
+        except ObjectDoesNotExist:
+            return JsonResponse({'msg': '资源不存在'}, status=417)
+
+        deployed_insts = MicroServiceInstance.objects.filter(microservice_id=service_id)
+        idset = set([int(x) for x in comma_host_ids.split(',') if x])
+        deployed_hosts = [x for x in deployed_insts if x.host_id in idset]
+
+        if deployed_hosts:
+            return JsonResponse({'msg': '主机{}已部署相关服务'.format(
+                ','.join(x.host.ip for x in deployed_hosts)
+            )}, status=417)
+
+        q = Q()
+        q.connector = 'OR'
+        for _id in idset:
+            q.children.append(('id', _id))
+        hosts = Asset.objects.filter(q)
+
+        if hosts.count() != len(idset):
+            return JsonResponse({'msg': '请发送正确的主机id'}, status=417)
+
+        installing_insts = []
+        for host in hosts:
+            d = {
+                'microservice_id': service.id,
+                'version_id': version.id,
+                'host_id': host.id,
+                'description': '{} instance'.format(service.name),
+                'status': InstanceStatus.installing.value,
+                'locked': True,
+                'updated_by': request.user,
+            }
+            inst = MicroServiceInstance.objects.create(**d)
+            installing_insts.append(inst.id)
 
         # TODO 发起任务
 
