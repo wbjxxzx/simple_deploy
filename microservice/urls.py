@@ -26,9 +26,16 @@ apis = [
 
     # 发布
     url(r'^api/microservice/(?P<service_id>[0-9]+)/inst/$', views.InstanceApi.as_view(), name='api_microservice_inst'),
-    url(r'^api/microservice/(?P<service_id>[0-9]+)/(?P<action>[a-z]+)/version/(?P<pk>[0-9]+)/$',
+    url(r'^api/microservice/(?P<service_id>[0-9]+)/deploy/(?P<action>[a-z]+)/version/(?P<pk>[0-9]+)/$',
         views.VersionDeployActionApi.as_view(),
         name='api_microservice_version_deploy_action'),
+    url(r'^api/microservice/(?P<service_id>[0-9]+)/hosts/$',
+        views.AvailableHostApi.as_view(),
+        name='api_available_hosts'),
+    url(r'^api/microservice/(?P<service_id>[0-9]+)/install/version/(?P<pk>[0-9]+)/$',
+        views.VersionInstallApi.as_view(),
+        name='api_microservice_version_install'),
+
 ]
 
 urlpatterns = pages + apis

@@ -50,6 +50,62 @@
 
 
     </form>
+
+  <!-- 安装 -->
+    <form id="service-install-form" class="layui-form" lay-filter="install" style="display: none;">
+
+      <div class="layui-form-item">
+        <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 名称</label>
+        <div class="layui-input-block">
+          <input type="text"
+                 name="name"
+                 value="{{ microserviceversion.microservice.name }}"
+                 autocomplete="off"
+                 class="layui-input"
+                 disabled
+                 style="background-color: #eee; cursor: not-allowed;"
+          />
+        </div>
+      </div>
+
+      <div class="layui-form-item">
+        <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 版本号</label>
+        <div class="layui-input-block">
+          <input type="text"
+                 name="version"
+                 value="{{ microserviceversion.version }}"
+                 autocomplete="off"
+                 class="layui-input"
+                 disabled
+                 style="background-color: #eee; cursor: not-allowed;"
+          />
+        </div>
+      </div>
+
+      <div class="layui-form-item">
+        <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 选择主机</label>
+        <div class="layui-input-block">
+          <select id="service-install-form-host"
+                  name="host"
+                  lay-verify="required"
+                  xm-select="install-select-host"
+                  xm-select-search=""
+                  xm-select-search-type="dl"
+                  xm-select-direction="down"
+                  xm-select-max="20"
+                  xm-select-show-count="10"
+                  ></select>
+        </div>
+      </div>
+
+      <div class="layui-form-item">
+        <div class="layui-input-block">
+          <button class="layui-btn layui-btn-primary my-cancel-button">取消</button>
+          <button class="layui-btn" lay-submit="" lay-filter="install-form">立即提交</button>
+        </div>
+      </div>
+
+    </form>
 {% endblock %}
 
 {% block footer %}
@@ -225,6 +281,70 @@ layui.use(['form', 'table', 'formSelects'],function () {
 
   }
 
+  function ajaxRenderSelect(){
+    // 渲染下拉框
+    $.ajax({
+      url: '{% url "api_available_hosts" microserviceversion.microservice_id %}',
+      type: 'GET',
+      dataType: 'json',
+    }).done(resp => {
+      var list = [];
+      var options = '<option value="">直接选择或搜索,暴多20条记录</option>';
+      resp.data.forEach(item => {
+        var option = '<option value="' + item.id + '"';
+        option += item.enable ? '' : 'disabled';
+        option += '>' + item.hostname + ':' + item.ip + '</option>';
+        list.push(option);
+      })
+      options += list.join('');
+      $('#service-install-form-host').empty().append(options);
+    }).fail((xhr, status, err) => {
+      layer.msg('获取主机列表失败', {icon: 2});
+    }).then(() => {
+      renderInstallForm();
+    })
+  }
+
+  function renderInstallForm(){
+    form.render('select', 'install'); // 刷新 select 显示数据
+    formSelects.render();
+    formSelects.on('select-host', function (id, vals, val, isAdd, isDisabled) {
+      // id:           点击select的id
+      // vals:         当前select已选中的值
+      // val:          当前select点击的值
+      // isAdd:        当前操作选中or取消
+      // isDisabled:   当前选项是否是disabled
+      return false;
+    });
+    form.on('submit(install-form)', function (data) {
+      $(this).addClass('layui-btn-disabled');
+      var loadingLayerIdx = layer.load(2, {shade: [0.3]});
+      var url = '{% url "api_microservice_version_install" microserviceversion.microservice_id microserviceversion.id %}';
+      $.ajax({
+        url: url,
+        type: "POST",
+        dataType: "json",
+        data: data.field,
+      }).done(result => {
+        parent.layer.close(selfIndex);
+        parent.layer.msg('提交成功', {
+          icon: 1,
+          time: 1000 //2秒关闭（如果不配置，默认是3秒）
+        }, function () {
+        });
+        // 刷新表格（即点击分页控件的“确定”按钮）
+        parent.$('.layui-laypage-btn').click();
+      }).fail(xhr => {
+        // 移除disabled属性  提交按钮可点击
+        $('#service-install-form button[lay-submit]').removeClass('layui-btn-disabled');
+        layer.msg('提交失败: ' + (xhr.status >=500 ? '服务器内部错误' : xhr.responseJSON.errmsg), {icon: 2});
+      }).always(() => {
+        // close loading
+        layer.close(loadingLayerIdx);
+      })
+      return false;
+    });
+  }
 });
 </script>
 {% endblock %}
