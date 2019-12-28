@@ -152,7 +152,7 @@ class ConfRevisionApi(generic.View):
             # 校验文件内容 返回错误或 cf 对象
             is_valid, raw_or_err, cf_obj = validate_conf(name, _type, raw_content)
             if not is_valid:
-                return JsonResponse({'msg': 'raw_or_err'}, status=417)
+                return JsonResponse({'msg': raw_or_err}, status=417)
 
             details.append({
                 'name': name,
@@ -318,7 +318,7 @@ class ConfRevisionRelateInstsApi(generic.View):
             return JsonResponse({'msg': '主机参数错误, 请传入逗号分隔的实例id值'}, status=417)
 
         # 该服务的全部实例
-        insts = MicroServiceInstance.objects.filter(service=svcobj).select_related('host')
+        insts = MicroServiceInstance.objects.filter(microservice=svcobj).select_related('host')
         idset = set([int(x) for x in comma_inst_ids.split(',') if x])
         relate_insts = []
         for inst in insts:

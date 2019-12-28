@@ -232,7 +232,7 @@
                 title: filename,
                 name: newTabName,
                 path: '/home/',
-                type: 'conf',
+                type: filename.substr(filename.lastIndexOf('.')+1, filename.length) || 'conf',
                 content: data,
                 newConf: true,
               });
