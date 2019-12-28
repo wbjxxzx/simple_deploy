@@ -75,6 +75,7 @@
 <table class="layui-hide" id="service-list-table" lay-filter="tableEvent"></table>
   <script type="text/html" id="barDemo">
     <a class="layui-btn layui-btn-xs" lay-event="version">版本管理</a>
+    <a class="layui-btn layui-btn-xs layui-btn-normal" lay-event="conf">配置文件</a>
     <a class="layui-btn layui-btn-xs layui-btn-primary" lay-event="edit">编辑</a>
     <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
   </script>
@@ -169,7 +170,7 @@
         , {field: 'language', title: '语言类型', width: 100}
         , {field: 'description', title: '描述', minWidth: 150}
 
-        , {fixed: 'right', title: '操作', width: 240, align: 'center', toolbar: '#barDemo'}
+        , {fixed: 'right', title: '操作', width: 320, align: 'center', toolbar: '#barDemo'}
       ]]
       , id: 'serviceListTable'
     });
@@ -219,6 +220,8 @@
           handleModify(obj);
         } else if (layEvent === 'version'){
           handleShowVersion(obj);
+        } else if (layEvent === 'conf'){
+          handleShowConf(obj);
         }
       });
 
@@ -231,6 +234,18 @@
           content: url,
           area: ["80%", "100%"],
           shadeClose: true,
+        })
+      }
+
+      function handleShowConf(obj){
+        var url = '{% url "page_conflist" 0 %}';
+        url = url.replace('0', obj.data.id);
+        layer.open({
+          title: '服务[<span style="color: green; font-weight: 700">' + obj.data.name + '</span>]配置文件',
+          type: 2, // 0（信息框，默认）1（页面层）2（iframe层）3（加载层）4（tips层）
+          content: url,    // 设置跳转的url，跳转到对应的页面
+          area: ["60%", "100%"],
+          shadeClose: true, // 点击弹出层的shade可关闭弹出层
         })
       }
 

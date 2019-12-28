@@ -11,9 +11,22 @@ pages = [
     url(r'^service/(?P<service_id>[0-9]+)/versions/$',
         views.ServiceVersionPageView.as_view(),
         name='page_service_versions'),
+
     url(r'^service/versions/(?P<pk>[0-9]+)/(?P<action>[a-z]+)/$',
         views.VersionDeployPageView.as_view(),
         name='page_version_deploy'),
+
+    url(r'^service/(?P<service_id>[0-9]+)/confs/$',
+        views.ConfRevisionPageView.as_view(),
+        name='page_conflist'),
+
+    url(r'^service/(?P<service_id>[0-9]+)/confs/(?P<pk>[0-9]+)/$',
+        views.ConfRevisionDetailPageView.as_view(),
+        name='page_conf_detail'),
+
+    url(r'^service/(?P<service_id>[0-9]+)/confs/diff/$',
+        views.ConfDiffPageView.as_view(),
+        name='page_conf_diff'),
 ]
 
 apis = [
@@ -36,6 +49,42 @@ apis = [
         views.VersionInstallApi.as_view(),
         name='api_microservice_version_install'),
 
+    # 配置文件管理
+    url(r'^api/microservice/(?P<service_id>[0-9]+)/confs/$',
+        views.ConfRevisionApi.as_view(),
+        name='api_microservice_confs'),
+
+    url(r'^api/microservice/(?P<service_id>[0-9]+)/confs/delete/(?P<pk>[0-9]+)/$',
+        views.ConfRevisionDeleteApi.as_view(),
+        name='api_microservice_conf_delete'),
+
+    url(r'^api/microservice/(?P<service_id>[0-9]+)/confs/desc/(?P<pk>[0-9]+)/$',
+        views.ConfRevisionUpdateDescApi.as_view(),
+        name='api_microservice_conf_desc'),
+
+    url(r'^api/microservice/(?P<service_id>[0-9]+)/confs/(?P<pk>[0-9]+)/$',
+        views.ConfRevisionDetailApi.as_view(),
+        name='api_microservice_conf_detail'),
+
+    url(r'^api/microservice/conf/validate/$',
+        views.ContentValidatorApi.as_view(),
+        name='api_microservice_conf_validate'),
+
+    url(r'^api/microservice/(?P<service_id>[0-9]+)/conf/setdefault/$',
+        views.ConfRevisionSetDefaultApi.as_view(),
+        name='api_microservice_conf_set_default'),
+
+    url(r'^api/microservice/(?P<service_id>[0-9]+)/conf/relateinsts/(?P<pk>[0-9]+)/$',
+        views.ConfRevisionRelateInstsApi.as_view(),
+        name='api_microservice_conf_related'),
+
+    url(r'^api/microservice/(?P<service_id>[0-9]+)/conf/activeall/$',
+        views.ConfRevisionActiveAllApi.as_view(),
+        name='api_microservice_conf_active_all'),
+
+    url(r'^api/microservice/(?P<service_id>[0-9]+)/confdiff/$',
+        views.ConfDiffApi.as_view(),
+        name='api_microservice_conf_diff'),
 ]
 
 urlpatterns = pages + apis

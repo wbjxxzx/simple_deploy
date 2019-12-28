@@ -1,0 +1,191 @@
+{% extends '__base.html' %}
+
+{% block content %}
+{% verbatim %}
+  <div id="app-service-conf-diff">
+  <el-row>
+    <div>
+      <el-tag color="white"><span style="color: #606266">无变化</span></el-tag> <el-tag type="success">新增</el-tag> <el-tag type="warning">修改</el-tag>
+      <el-tag type="danger"><span style="text-decoration: line-through">删除</span></el-tag>
+      <span class="el-form-item__label">当前对比文件:
+        <span style="font-weight: 700">{{ currentFileName }}</span>
+      </span>
+    </div>
+  </el-row>
+
+  <el-row>
+    <el-col :span="12">
+      <div style="display: flex; flex-flow: row wrap">
+        <div v-for="(item, idx) in leftArea">
+          <el-button
+            plain
+            disabled
+          >{{ item.title }}</el-button>
+        </div>
+      </div>
+    </el-col>
+
+    <el-col :span="12">
+      <div style="display: flex; flex-flow: row wrap">
+        <div v-for="(item, idx) in rightArea">
+          <el-button
+            v-if="item.state === 'delete'"
+            type="danger"
+            plain
+            @click="handleActiveName(idx)"
+          ><span style="text-decoration: line-through">{{ item.title }}</span></el-button>
+          <el-button
+            v-else-if="item.state === 'new'"
+            type="success"
+            plain
+            @click="handleActiveName(idx)"
+          >{{ item.title }}</el-button>
+          <el-button
+            v-else-if="item.state === 'modified'"
+            type="warning"
+            plain
+            @click="handleActiveName(idx)"
+          >{{ item.title }}</el-button>
+          <el-button
+            v-else
+            type=""
+            plain
+            @click="handleActiveName(idx)"
+          >{{ item.title }}</el-button>
+        </div>
+      </div>
+    </el-col>
+  </el-row>
+
+  <el-row>
+    <el-col :span="24">
+      <div class="mergely-full-screen-8">
+        <div class="mergely-resizer">
+          <div id="mergely-diff-view"></div>
+        </div>
+      </div>
+    </el-col>
+  </el-row>
+
+  </div>
+  {% endverbatim %}
+{% endblock %}
+
+{% block footer %}
+<script src="/static/js/merge/codemirror.min.js"></script>
+<script src="/static/js/merge/searchcursor.js"></script>
+<script src="/static/js/merge/mergely.min.js"></script>
+<link rel="stylesheet" href="/static/css/merge/mergely.css" />
+<link rel="stylesheet" href="/static/css/merge/codemirror.css" />
+<script>
+  var layer = null;
+  layui.use(['layer'], function () {
+    layer = layui.layer //弹层
+  });
+  // 获取url里的查询版本信息
+  var revisionSearch = location.search;
+
+  new Vue({
+      el: '#app-service-conf-diff',
+      data() {
+        return {
+          list: null,
+          loading: true,
+
+          leftArea: null,
+          rightArea: null,
+          currentFileName: '',
+        }
+      },
+      methods: {
+        fetchData(){
+          var url = '{% url "api_microservice_conf_diff" microservice.id %}' + revisionSearch //数据接口
+          $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+          }).done(result => {
+            this.genDiffData(result.data)
+            this.handleActiveName(0)
+          }).fail((xhr, status, error) => {
+            ajaxErrorHandle(xhr, status, error, frameIdx=null, action='获取数据');
+          }).always(() => {
+            this.loading = false
+          })
+        },
+
+        // 生成对比数据
+        genDiffData(data){
+          const _this = this
+          // 以左边为基准 找出右边删除和新增的
+          var leftNames = data[0].items.map(item => item.title)
+          var rightNames = data[1].items.map(item => item.title)
+          var leftSet = new Set(leftNames)
+          var rightSet = new Set(rightNames)
+          var leftAbsent = []
+          var rightDelete = []
+          leftSet.forEach(k => {
+            if(! rightSet.has(k)){
+              rightDelete.push({
+                title: k,
+                content: '',
+                state: 'delete',
+              })
+            }
+          })
+          rightSet.forEach(k => {
+            if(! leftSet.has(k)){
+              leftAbsent.push({
+                title: k,
+                content: '',
+                state: 'absent',
+              })
+            }
+          })
+
+          // 排序
+          var left = data[0].items, right = data[1].items
+          left = left.concat(leftAbsent)
+          left.sort((a, b) => a.title >= b.title ? 1 : -1)
+          right = right.concat(rightDelete)
+          right.sort((a, b) => a.title >= b.title ? 1 : -1)
+
+          var idx = 0, len = left.length
+          for(; idx < len; idx++){
+            if(left[idx].state === 'absent'){
+              right[idx].state = 'new'
+            } else if(right[idx].state !== 'delete' && left[idx].content !== right[idx].content ){
+              right[idx].state = 'modified'
+            }
+          }
+
+          _this.leftArea = left
+          _this.rightArea = right
+        },
+
+        // 选中某个文件
+        handleActiveName(idx){
+          const _this = this;
+          _this.currentFileName = _this.rightArea[idx].title
+          //var diffAreaElement = ;
+          $('#mergely-diff-view').mergely({
+            editor_width: "45%",
+            cmsettings: {editor_height: '100%', readOnly: true, lineWrapping: false, lineNumbers: true},
+            editor_height: "85vh",
+            autoresize: true,
+          });
+          $('.CodeMirror.cm-s-default').css('height', '100%');
+          $('#mergely-diff-view').mergely('lhs', _this.leftArea[idx].content);
+          $('#mergely-diff-view').mergely('rhs', _this.rightArea[idx].content);
+        },
+
+      },
+      created(){
+        this.fetchData()
+      },
+      mounted(){
+      }
+    })
+
+  </script>
+{% endblock %}

@@ -12,14 +12,30 @@
 <body>
 
   {% block content %}{% endblock %}
-
+<link rel="stylesheet" href="/static/css/element-ui/theme-chalk/index.css" />
   <script src="/static/js/layui/layui.js"></script>
+  <script src="/static/js/jquery.min.js"></script>
+  <script src="/static/js/vue.min.js"></script>
+  <script src="/static/js/element-ui/index.js"></script>
   <script>
     layui.config({
       base: '/static/js/layui/ext/'
     }).extend({
       formSelects: 'formSelects-v4.min'
-    })
+    });
+
+  function ajaxErrorHandle(xhr, status, error, frameIdx=null, action='操作') {
+    if (error === 'Unauthorized'){
+      loginFormIframe();
+    } else {
+      if(frameIdx) {
+        layer.close(frameIdx);
+        parent.layer.msg('获取数据失败，请稍候再试', {icon: 2});
+      } else{
+        layer.msg(action + '失败: ' + (xhr.status >=500 ? '服务器内部错误' : xhr.responseJSON.msg), {icon: 2});
+      }
+    }
+  }
   </script>
   {% block footer %} {% endblock %}
 </body>
