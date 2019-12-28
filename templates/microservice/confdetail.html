@@ -1,0 +1,329 @@
+{% extends '__base.html' %}
+
+{% block content %}
+{% verbatim %}
+  <div class="layui-row" id="app-file-conf" style="margin: 10px;">
+
+    <div style="margin-top: 10px; margin-bottom: 10px;" >
+      <el-button type="success"
+        :loading="submitLoading"
+        @click="handleSubmit"
+      >提交</el-button>
+    </div>
+
+    <div style="margin-top: 10px; margin-bottom: 10px;">
+      <el-input v-model="confDesc"
+        placeholder="描述、用途等, 不超过120个字符"
+        clearable
+        maxlength="120"
+      />
+    </div>
+    <div style="display: flex; flex-flow: row nowrap; margin-bottom: 20px">
+      <el-button style="margin-right: 10px"
+        @click="addTab(editableTabsValue)"
+      >增加文件</el-button>
+
+      <el-upload
+        action="#"
+        :show-file-list="false"
+        :http-request="confUpload"
+      >
+        <el-button type="primary">从文件导入</el-button>
+      </el-upload>
+    </div>
+
+      <el-tabs v-model="editableTabsValue" type="card" closable @tab-remove="removeTab">
+        <el-tab-pane
+          v-for="(conf, index) in editableTabs"
+          :key="conf.name"
+          :label="conf.title"
+          :name="conf.name"
+        >
+          <el-row>
+            <el-col :span="12">
+          <el-form
+            :ref="'editableTabs.' + index"
+            label-position="left"
+            label-width="80px"
+            style="margin: 10px;"
+          >
+            <el-form-item
+              label="名称"
+
+              :rules="[
+              { required: true, message: '不能为空', trigger: 'blur' },
+            ]"
+            >
+               <!-- :prop="'editableTabs.' + index + '.title'" -->
+              <el-input v-model="conf.title"
+                placeholder="请输入名称, 不超过48个字符"
+                clearable
+                maxlength="48"
+                :disabled="isModify && ! conf.newConf"
+              />
+            </el-form-item>
+
+            <el-form-item
+              label="选择类型"
+              :rules="[
+              { required: true, message: '不能为空', trigger: 'change' },
+            ]"
+            >
+              <el-radio-group v-model="conf.type" :disabled="isModify && ! conf.newConf">
+                <el-radio label="conf">conf</el-radio>
+                <el-radio label="ini">ini</el-radio>
+                <el-radio label="json">json</el-radio>
+                <el-radio label="yml">yml</el-radio>
+              </el-radio-group>
+            </el-form-item>
+
+            <el-form-item
+              label="部署路径"
+              :rules="[
+              { required: true, message: '不能为空', trigger: 'blur' },
+            ]"
+            >
+              <el-input v-model="conf.path"
+                placeholder="请输入部署路径, 不超过64个字符"
+                clearable
+                maxlength="64"
+                disabled
+              />
+              <!-- :disabled="isModify && ! conf.newConf" -->
+            </el-form-item>
+
+            <el-form-item
+              label="文件内容"
+              :rules="[
+              { required: true, message: '不能为空', trigger: 'blur' },
+            ]"
+            >
+              <el-input v-model="conf.content"
+                placeholder="请输入内容"
+                clearable
+                rows="20"
+                type="textarea"
+              />
+            </el-form-item>
+
+            <el-form-item >
+              <el-button type="primary" @click="handleValidatContent('editableTabs.' + index, conf)">校验内容</el-button>
+            </el-form-item>
+
+          </el-form>
+              </el-col>
+
+            <el-col :span="12">
+
+              <pre v-if="conf.content"
+                   style="height: 90%;overflow-y: scroll; overflow-x: none; background-color: #f5f5f5; border: 1px solid #ccc; border-radius: 4px;"
+              >{{ conf.content }}</pre>
+
+            </el-col>
+        </el-row>
+        </el-tab-pane>
+      </el-tabs>
+  </div>
+
+{% endverbatim %}
+{% endblock %}
+
+{% block footer %}
+
+  <script>
+  var layer = null;
+  layui.use(['layer'], function () {
+    layer = layui.layer //弹层
+  });
+  var selfIndex = parent.layer.getFrameIndex(window.name); //先得到当前iframe层的索引
+  var pathnames = location.pathname.split('/');
+  // 获取url里的id
+  var revisionId = pathnames.pop();
+  if(revisionId === '' || revisionId.startsWith('?') ){
+    revisionId = pathnames.pop();
+  }
+    new Vue({
+      el: '#app-file-conf',
+      data() {
+        return {
+          editableTabsValue: '0',  // 当前激活的 tab
+          editableTabs: [],
+          tabIndex: 0,
+          type: 'conf',
+          confDesc: '',
+          submitLoading: false,
+          isModify: '0'.indexOf(revisionId) === -1 ? true : false,
+        }
+      },
+      methods: {
+        fetchData(){
+          var url = '{% url "api_microservice_conf_detail" microservice.id 0 %}'
+          if(revisionId === '0'){
+            return
+          }
+          url = url.substr('0', url.lastIndexOf(0));
+          url +=  revisionId + '/';
+          $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+          }).done(result => {
+            this.editableTabs = result.items.map((item, idx) => {
+              item.newConf = false  // 标记是否新文件  旧的名称、路径等不能修改
+              item.name = idx + ''  //  注册 tab name  删除tab时用到
+              item.path = '/home/godman/etc/'
+              return item
+            })
+            this.confDesc = result.description;
+            this.tabIndex = this.editableTabs.length - 1
+          }).fail((xhr, status, error) => {
+            ajaxErrorHandle(xhr, status, error, frameIdx=null, action='获取数据');
+          })
+        },
+
+        addTab(targetName) {
+          let newTabName = ++this.tabIndex + '';
+          this.editableTabs.push({
+            title: 'New conf',
+            name: newTabName,
+            path: '/home/',
+            type: 'conf',
+            content: '',
+            newConf: true,
+          });
+          this.editableTabsValue = newTabName;
+        },
+
+        removeTab(targetName) {
+          console.log('targetName: ', targetName)
+          let tabs = this.editableTabs;
+          let activeName = this.editableTabsValue;
+          if (activeName === targetName) {
+            tabs.forEach((tab, index) => {
+              if (tab.name === targetName) {
+                let nextTab = tabs[index + 1] || tabs[index - 1];
+                if (nextTab) {
+                  activeName = nextTab.name;
+                }
+              }
+            });
+          }
+
+          this.editableTabsValue = activeName;
+          this.editableTabs = tabs.filter(tab => tab.name !== targetName);
+        },
+
+        confUpload(param) {
+          console.log(param)
+          const rawFile = param.file
+          const filename = param.file.name
+          return new Promise((resolve, reject) => {
+            if(this.editableTabs.filter(item => item.title === filename).length){
+              layer.msg('已存在相同的文件名', {icon: 2});
+              reject()
+              return
+            }
+            const reader = new FileReader()
+            reader.onload = e => {
+              const data = e.target.result
+              console.log(e)
+              let newTabName = ++this.tabIndex + '';
+              this.editableTabs.push({
+                title: filename,
+                name: newTabName,
+                path: '/home/',
+                type: 'conf',
+                content: data,
+                newConf: true,
+              });
+              this.editableTabsValue = newTabName;
+              resolve()
+            }
+            reader.readAsText(rawFile)
+          })
+        },
+
+        handleValidatContent(ref, conf){
+          var data = {
+            name: conf.title,
+            path: conf.path,
+            type: conf.type,
+            content: conf.content,
+          }
+          var loadingLayerIdx = layer.load(2, {
+            shade: [0.3]
+          });
+          $.ajax({
+            url: '{% url "api_microservice_conf_validate" %}',
+            type: 'POST',
+            data: JSON.stringify(data),
+            dataType: 'json',
+            contentType: 'application/json; charset=utf-8',
+            processData: false
+          }).done(() => {
+            layer.msg('校验通过', {
+              icon: 1,
+              time: 1000 //2秒关闭（如果不配置，默认是3秒）
+            })
+          })
+            .fail((xhr, status, error) => {
+              ajaxErrorHandle(xhr, status, error, frameIdx=null, action='校验');
+            })
+            .always(() => {
+              layer.close(loadingLayerIdx);
+            })
+        },
+
+        handleSubmit(){
+          if(this.editableTabs.length === 0){
+            layer.msg('数据为空，无法提交');
+            return;
+          }
+          var confs = [];
+          this.editableTabs.forEach(conf => {
+            confs.push({
+              name: conf.title,
+              path: conf.path,
+              type: conf.type,
+              content: conf.content,
+            })
+          })
+          var data = {
+            files: confs,
+            description: this.confDesc,
+          };
+          var loadingLayerIdx = layer.load(2, {
+            shade: [0.3]
+          });
+          this.submitLoading = true
+          $.ajax({
+            url: '{% url "api_microservice_confs" microservice.id %}',
+            type: 'POST',
+            data: JSON.stringify(data),
+            dataType: 'json',
+            contentType: 'application/json; charset=utf-8',
+            processData: false
+          }).done(() => {
+            layer.msg('提交成功', {
+              icon: 1,
+              time: 1000 //2秒关闭（如果不配置，默认是3秒）
+            }, function () {
+              parent.layer.close(selfIndex);
+              // 刷新表格（即点击分页控件的“确定”按钮）
+              // parent.layer.getChildFrame('.layui-laypage-btn').click()
+            });
+          }).fail((xhr, status, error) => {
+            ajaxErrorHandle(xhr, status, error, frameIdx=null, action='提交');
+          }).always(() => {
+            layer.close(loadingLayerIdx);
+            this.submitLoading = false
+          });
+        },
+
+      },
+      created(){
+        this.fetchData()
+      },
+    })
+  </script>
+{% endblock %}

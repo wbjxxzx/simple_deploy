@@ -1,0 +1,507 @@
+{% extends '__base.html' %}
+
+{% block content %}
+{% verbatim %}
+  <div id="app-service-conf" v-loading="fetchInstLoading">
+    <div style="margin-top: 10px; margin-bottom: 10px; float: right;" >
+      <el-button type="success"
+        @click="handleCreateConf"
+      >添加配置</el-button>
+    </div>
+
+    <div style="margin-top: 10px; margin-bottom: 10px; float: left;" >
+      <el-button type="primary"
+        @click="handleDiffConf"
+      >文件对比</el-button>
+    </div>
+
+  <el-table
+    v-loading="loading"
+    :data="list"
+    border
+    fit
+    @selection-change="handleSelectionChange"
+    style="width: 100%;"
+  >
+    <el-table-column
+      type="selection"
+      width="55">
+    </el-table-column>
+
+    <el-table-column label="service名称"
+                       align="center"
+                       min-width="100"
+                       >
+        <template slot-scope="scope">
+          <span>{{ scope.row.name }}</span>
+        </template>
+      </el-table-column>
+
+    <el-table-column label="修订号"
+                       align="center"
+                       width="100"
+                       >
+        <template slot-scope="scope">
+          <span>{{ scope.row.revision }}</span>
+          <el-tag type="danger" v-if="scope.row.is_default">默认</el-tag>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="描述"
+                       align="center"
+                       min-width="200"
+                       >
+        <template slot-scope="scope" >
+          <div style="position: absolute; right: 2px; bottom: 2px">
+            <el-popover
+              placement="right"
+              trigger="click"
+              width="300"
+              @show="popoverChangeDesc(scope.row)"
+              style="white-space: pre-wrap;word-break: break-all"
+            >
+              <el-input
+                      placeholder="描述、用途等, 不超过120个字符"
+                      clearable
+                      maxlength="120"
+                      type="textarea"
+                      rows="5"
+                      v-model="currentEditDesc"
+              ></el-input>
+              <div style="text-align: right; margin: 1px">
+                <el-button type="success" size="mini"
+                      :loading="editDescLoading"
+                      @click="handleModifyDesc(scope.row)">提交</el-button>
+              </div>
+              <el-button size="mini" type="text" slot="reference">修改</el-button>
+            </el-popover>
+          </div>
+          <span>{{ scope.row.description }}</span>
+        </template>
+      </el-table-column>
+
+    <el-table-column label="实例数量"
+                       align="center"
+                       width="100"
+                       >
+        <template slot-scope="scope">
+          <el-button v-if="scope.row.num_insts"
+                     type="primary" plain
+                     @click="handleShowInstance(scope.row)"
+          >{{ scope.row.num_insts }}</el-button>
+          <span v-else>{{ scope.row.num_insts }}</span>
+        </template>
+      </el-table-column>
+
+    <el-table-column label="修改人"
+                       align="center"
+                       min-width="80"
+                       >
+        <template slot-scope="scope">
+          <span>{{ scope.row.created_by }}</span>
+        </template>
+      </el-table-column>
+
+    <el-table-column label="修改时间"
+                       align="center"
+                       width="110"
+                       >
+        <template slot-scope="scope">
+          <span>&nbsp;{{ scope.row.created }}</span>
+        </template>
+      </el-table-column>
+
+    <el-table-column label="操作"
+                     align="center"
+                     width="200"
+                     fixed="right">
+      <template slot-scope="scope">
+        <el-button-group>
+          <el-button size="mini" type="success"
+              @click="handleActiveInsts(scope.row)">关联实例</el-button>
+          <el-button size="mini"
+              @click="handleModify(scope.row)">修改</el-button>
+        </el-button-group>
+        <el-button-group>
+          <el-button size="mini" type="warning" v-if="scope.row.is_default"
+            @click="handleActiveAll(scope.row)">应用到全部</el-button>
+          <el-button size="mini" type="primary" v-else
+            @click="handleSetDefault(scope.row)">设为默认</el-button>
+
+          <el-button size="mini" type="danger"
+              @click="handleDelete(scope.row)">删除</el-button>
+        </el-button-group>
+      </template>
+    </el-table-column>
+
+  </el-table>
+
+  <el-dialog :visible.sync="dialogRelateInstVisible"
+              :title="'关联实例'"
+              top="0px"
+              width="800px"
+              height="80vh"
+          >
+    <div style="display: flex; flex-flow: column" >
+      <div>
+        <span class="el-form-item__label">修订号: <span style="color: red">{{ currentRevision.revision }}</span></span>
+      </div>
+      <el-transfer
+        ref="transferModule"
+        v-model="related_insts"
+        filterable
+        :titles="['待关联', '已关联']"
+        :props="{
+          key: 'id',
+          label: 'host'
+        }"
+        :data="insts"
+      >
+      </el-transfer>
+    </div>
+
+
+    <span slot="footer"
+            class="dialog-footer">
+        <el-button :disabled="submitLoading"
+                    @click="dialogRelateInstVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitLoading"
+                   @click="submitForm">
+                   <span>提交</span></el-button>
+      </span>
+
+  </el-dialog>
+
+  </div>
+  {% endverbatim %}
+{% endblock %}
+
+{% block footer %}
+<style>
+    .el-transfer-panel{
+      width: 260px;
+    }
+  </style>
+  <script>
+  var layer = null;
+  layui.use(['layer'], function () {
+    layer = layui.layer //弹层
+  });
+  new Vue({
+      el: '#app-service-conf',
+      data() {
+        return {
+          list: null,
+          loading: true,
+          multipleSelection: [],
+
+          insts: null,
+          fetchInstLoading: false,
+          dialogRelateInstVisible: false,
+          submitLoading: false,
+          currentRevision: {},
+          related_insts: [],
+
+          currentEditDesc: '',   // 当前正在编辑的描述
+          editDescLoading: false,
+        }
+      },
+      methods: {
+        fetchData(){
+          var url = '{% url "api_microservice_confs" microservice.id %}' //数据接口
+          $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+          }).done(result => {
+            this.list = result.data
+          }).fail((xhr, status, error) => {
+            ajaxErrorHandle(xhr, status, error, frameIdx=null, action='获取数据');
+          }).always(() => {
+            this.loading = false
+          })
+        },
+
+        handleCreateConf(){
+          const _this = this;
+          var url = '{% url "page_conf_detail" microservice.id 0 %}';
+          parent.layer.open({
+            title: '配置文件详情',
+            type: 2, // 0（信息框，默认）1（页面层）2（iframe层）3（加载层）4（tips层）
+            content: url,    // 设置跳转的url，跳转到对应的页面
+            area: ["80%", "100%"],
+            shadeClose: true, // 点击弹出层的shade可关闭弹出层
+            end: () => {
+              // 弹出层被销毁时执行
+              // 重载表格
+              _this.fetchData()
+            }
+          })
+        },
+
+        // 查看实例
+        handleShowInstance(obj){
+
+        },
+
+        // 修改
+        handleModify(obj){
+          const _this = this;
+          var url = '{% url "page_conf_detail" microservice.id 0 %}';
+          url = url.substr('0', url.lastIndexOf(0));
+          url +=  obj.id + '/';
+          parent.layer.open({
+            title: '配置文件详情',
+            type: 2, // 0（信息框，默认）1（页面层）2（iframe层）3（加载层）4（tips层）
+            content: url,    // 设置跳转的url，跳转到对应的页面
+            area: ["80%", "100%"],
+            shadeClose: true, // 点击弹出层的shade可关闭弹出层
+            end: () => {_this.fetchData()}, // 层被销毁时 执行 end
+          })
+        },
+
+        // 修改描述
+        handleModifyDesc(obj){
+          const _this = this
+          var url = '{% url "api_microservice_conf_desc" microservice.id 0 %}';
+          url = url.substr('0', url.lastIndexOf(0));
+          url +=  obj.id + '/';
+
+          var formData = new FormData();
+          formData.append('description', _this.currentEditDesc);
+          _this.editDescLoading = true
+          $.ajax({
+            url: url,
+            type: 'POST',
+            data: formData,
+            dataType: 'json',
+            contentType: false,
+            processData: false
+          }).done(() => {
+            layer.msg('提交成功', {
+              icon: 1,
+              time: 1000 //2秒关闭（如果不配置，默认是3秒）
+            })
+            obj.description = _this.currentEditDesc
+          })
+            .fail((xhr, status, error) => {
+              ajaxErrorHandle(xhr, status, error, frameIdx=null, action='提交');
+            })
+            .always(() => {
+              _this.editDescLoading = false
+            })
+        },
+        //
+        popoverChangeDesc(obj){
+          this.currentEditDesc = obj.description
+        },
+
+        // 设为默认
+        handleSetDefault(obj){
+          const _this = this;
+          layer.confirm('确定设为默认配置？', {icon: 0, title:'提示'}, function (index) {
+            layer.close(index);
+            // loading
+            var loadingLayerIdx = layer.load(2, {
+              shade: [0.3]
+            });
+
+            var url = '{% url "api_microservice_conf_set_default" microservice.id %}';
+            // url = url.substr(0, url.lastIndexOf(0));
+            // url +=  obj.data.id + '/';
+            var formData = new FormData();
+            formData.append('revision', obj.revision);
+            $.ajax({
+              url: url,
+              type: "POST",
+              dataType: 'json',
+              processData: false,
+              contentType: false,
+              data: formData
+            }).done(result => {
+              layer.msg('操作成功', {icon: 1, time: 1000});
+              _this.fetchData();
+            }).fail((xhr, status, error) => {
+              ajaxErrorHandle(xhr, status, error, frameIdx=null, action='操作');
+            }).always(() => {
+              // close loading
+              layer.close(loadingLayerIdx);
+            });
+          })
+        },
+
+        // 激活配置到全部实例
+        handleActiveAll(obj){
+          const _this = this;
+          layer.confirm('确定将该配置应用到全部实例？', {icon: 0, title:'提示'}, function (index) {
+            layer.close(index);
+            // loading
+            var loadingLayerIdx = layer.load(2, {
+              shade: [0.3]
+            });
+
+            var url = '{% url "api_microservice_conf_active_all" microservice.id %}';
+            var formData = new FormData();
+            formData.append('revision', obj.revision);
+            $.ajax({
+              url: url,
+              type: "POST",
+              dataType: 'json',
+              processData: false,
+              contentType: false,
+              data: formData
+            }).done(result => {
+              layer.msg('操作成功', {icon: 1, time: 1000});
+              _this.fetchData();
+            }).fail((xhr, status, error) => {
+              ajaxErrorHandle(xhr, status, error, frameIdx=null, action='操作');
+            }).always(() => {
+              // close loading
+              layer.close(loadingLayerIdx);
+            });
+          })
+        },
+
+        // 关联配置到多个实例
+        handleActiveInsts(obj){
+          const _this = this
+          _this.fetchInstLoading = true
+          var url = '{% url "api_microservice_inst" microservice.id %}?page=1&limit=1000'; // 服务的全部实例
+          $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+          }).done(result => {
+            _this.insts = result.data.map(item => {
+              return {
+                id: item.id,
+                host: item.host,
+                confrevision: item.confrevision
+              }
+            })
+            _this.hasFetchInsts = true
+            _this.activeInstsHelper(obj)
+          }).fail((xhr, status, error) => {
+            ajaxErrorHandle(xhr, status, error, frameIdx=null, action='获取数据');
+          }).always(() => {
+            _this.fetchInstLoading = false
+          })
+
+        },
+        activeInstsHelper(obj){
+          const _this = this
+          _this.currentRevision = obj
+          _this.related_insts = []
+          _this.insts.forEach(item => {
+            if(item.confrevision === obj.revision){
+              _this.related_insts.push(item.id)
+              item.disabled = true
+            } else {
+              item.disabled = false
+            }
+          })
+          // 重置穿梭框左右面板搜索
+          _this.$nextTick(() => {
+            _this.$refs.transferModule.clearQuery('left')
+            _this.$refs.transferModule.clearQuery('right')
+          })
+          _this.dialogRelateInstVisible = true
+        },
+
+        submitForm(){
+          const _this = this;
+          var url = '{% url "api_microservice_conf_related" microservice.id 0 %}';
+          url = url.substr('0', url.lastIndexOf(0));
+          url +=  _this.currentRevision.id + '/';
+
+          var formData = new FormData();
+          formData.append('ids', _this.related_insts);
+
+          $.ajax({
+            url: url,
+            type: 'POST',
+            data: formData,
+            dataType: 'json',
+            contentType: false,
+            processData: false
+          }).done(() => {
+            layer.msg('提交成功', {
+              icon: 1,
+              time: 1000 //2秒关闭（如果不配置，默认是3秒）
+            })
+            _this.dialogRelateInstVisible = false
+            // 刷新列表
+            _this.fetchData();
+          })
+            .fail((xhr, status, error) => {
+              ajaxErrorHandle(xhr, status, error, frameIdx=null, action='提交');
+            })
+            .always(() => {
+              _this.submitLoading = false
+            })
+        },
+
+        // 删除
+        handleDelete(obj){
+          const _this = this;
+          layer.confirm('确定删除？', {icon: 0, title:'提示'}, function (index) {
+            layer.close(index);
+            // loading
+            var loadingLayerIdx = layer.load(2, {
+              shade: [0.3]
+            });
+
+            var url = '{% url "api_microservice_conf_delete" microservice.id 0 %}';
+            url = url.substr('0', url.lastIndexOf(0));
+            url +=  obj.id + '/';
+
+            $.ajax({
+              url: url,
+              type: "DELETE",
+              dataType: 'json',
+            }).done(result => {
+              layer.msg('操作成功', {icon: 1});
+              // 刷新表格（即点击分页控件的“确定”按钮）
+              _this.fetchData();
+            }).fail((xhr, status, error) => {
+              ajaxErrorHandle(xhr, status, error, frameIdx=null, action='删除');
+            }).always(() => {
+              // close loading
+              layer.close(loadingLayerIdx);
+            });
+          })
+        },
+
+        // 表格数据勾选
+        handleSelectionChange(val) {
+          this.multipleSelection = val;
+        },
+
+        // 文件对比
+        handleDiffConf(){
+          if(this.multipleSelection.length !== 2){
+            layer.msg('请选择2条记录');
+          } else {
+            var url = '{% url "page_conf_diff" microservice.id %}';
+            var revisions= this.multipleSelection.map(item => item.revision)
+            revisions.sort()
+            url += '?revision=' + revisions.join(',')
+            parent.layer.open({
+              title: '配置文件对比 修订号: [ <span style="color: red; font-weight: 700">' + revisions[0] +
+              '</span> ] VS [ <span style="color: red; font-weight: 700">' + revisions[1] + '</span> ]',
+              type: 2, // 0（信息框，默认）1（页面层）2（iframe层）3（加载层）4（tips层）
+              content: url,    // 设置跳转的url，跳转到对应的页面
+              area: ["90%", "100%"],
+              shadeClose: true, // 点击弹出层的shade可关闭弹出层
+            })
+          }
+        },
+
+      },
+      created(){
+        this.fetchData()
+      }
+    })
+
+  </script>
+{% endblock %}

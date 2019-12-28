@@ -18,3 +18,4 @@ six==1.13.0
 traitlets==4.3.3
 wcwidth==0.1.7
 requests==2.22.0
+pyyaml==5.2

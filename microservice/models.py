@@ -3,6 +3,8 @@ from __future__ import unicode_literals
 
 from django.db import models
 from django.conf import settings
+from asset.models import Asset
+from enum import Enum, unique
 
 # Create your models here.
 
@@ -29,7 +31,7 @@ class MicroService(models.Model):
         unique_together = (('name', ), )
         ordering = ['-created']
 
-from enum import Enum, unique
+
 @unique
 class BuildStatus(Enum):
     pending = 0
@@ -71,7 +73,37 @@ class InstanceStatus(Enum):
     delete_failed = 14
 
 
-from asset.models import Asset
+class ConfRevision(models.Model):
+    name = models.CharField(max_length=48, help_text='名称')
+    revision = models.PositiveIntegerField(help_text='修订号')
+    is_default = models.BooleanField(default=False, help_text='是否默认')
+    created = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
+    description = models.CharField(max_length=120, blank=True, null=True)
+    service = models.ForeignKey(MicroService, on_delete=models.DO_NOTHING) # 1个服务可以有多个配置文件版本号
+
+    class Meta:
+        ordering = ['-id']
+
+
+class ConfDetail(models.Model):
+    FILE_TYPE = (
+        ('ini', 'ini'),
+        ('conf', 'conf'),
+        ('json', 'json'),
+        ('yml', 'yml'),
+        ('toml', 'toml'),
+    )
+    name = models.CharField(max_length=48, help_text='配置文件名称')
+    type = models.CharField(max_length=4, choices=FILE_TYPE)
+    content = models.TextField(null=True, blank=True)
+    created = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
+    description = models.CharField(max_length=120, blank=True, null=True)
+    rev = models.ForeignKey(ConfRevision, on_delete=models.DO_NOTHING)
+    path = models.FilePathField(max_length=128, help_text='文件路径', default='/home/')
+
+
 class MicroServiceInstance(models.Model):
     STATUS = tuple([(v.value, k) for k, v in InstanceStatus.__members__.items()])
 
@@ -87,9 +119,11 @@ class MicroServiceInstance(models.Model):
     status = models.PositiveSmallIntegerField(u'实例状态', choices=STATUS, default=0)
     locked = models.BooleanField(u'操作锁定', default=False)
     is_maintain = models.BooleanField(u'是否维护中', default=False) # 保留
+    conf_revision = models.ForeignKey(ConfRevision, null=True, blank=True, on_delete=models.DO_NOTHING) # 1个配置文件可以对应多个实例
 
     class Meta:
         db_table = 'micro_service_instance'
         ordering = ['-updated']
+
 
 
