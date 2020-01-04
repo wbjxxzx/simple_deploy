@@ -1,0 +1,238 @@
+{% extends '__base.html' %}
+
+{% block content %}
+  {% verbatim %}
+  <div id="app-service-inst">
+  <el-table
+      v-loading="loading"
+      :data="list"
+      border
+      fit
+      style="width: 100%;"
+    >
+    <el-table-column
+      type="index"
+      width="50">
+    </el-table-column>
+
+    <el-table-column label="版本号"
+                       align="center"
+                       min-width="100"
+                       :show-overflow-tooltip="false"
+                       >
+        <template slot-scope="scope">
+          <span>{{ scope.row.version }}</span>
+        </template>
+      </el-table-column>
+
+    <el-table-column label="主机"
+                       align="center"
+                       min-width="120"
+                       >
+        <template slot-scope="scope">
+          <span>{{ scope.row.host }}</span>
+        </template>
+      </el-table-column>
+
+    <el-table-column label="端口"
+                       align="center"
+                       width="100"
+                       >
+        <template slot-scope="scope">
+          <span v-if="scope.row.port">{{ scope.row.port }}</span>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+
+    <el-table-column label="当前状态"
+                       align="center"
+                       min-width="100"
+                       >
+        <template slot-scope="scope">
+          <el-tag v-if="scope.row.status_str === 'running'" type="success">running</el-tag>
+          <el-tag v-else-if="scope.row.status_str.endsWith('failed')"  type="danger">{{ scope.row.status_str }}</el-tag>
+          <el-tag v-else >{{ scope.row.status_str }}</el-tag>
+
+        </template>
+      </el-table-column>
+
+    <el-table-column label="配置文件修订号"
+                       align="center"
+                       width="100"
+                       >
+        <template slot-scope="scope">
+          <span v-if="scope.row.confrevision">{{ scope.row.confrevision }}</span>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+
+
+    <el-table-column label="修改人"
+                       align="center"
+                       min-width="80"
+                       >
+        <template slot-scope="scope">
+          <span>{{ scope.row.updated_by }}</span>
+        </template>
+      </el-table-column>
+
+    <el-table-column label="修改时间"
+                       align="center"
+                       min-width="120"
+                       >
+        <template slot-scope="scope">
+          <span>{{ scope.row.updated }}</span>
+        </template>
+      </el-table-column>
+
+
+    <el-table-column label="操作"
+                     align="center"
+                     width="120"
+                     fixed="right">
+      <template slot-scope="scope">
+        <el-button-group v-if="exceptStatus.indexOf(scope.row.status_str) !== -1">
+          <el-button size="mini" type="danger"
+              @click="handleDelete(scope.row)">删除</el-button>
+        </el-button-group>
+
+        <el-button-group v-else>
+          <el-button size="mini" type="warning" v-if="false"
+            @click="handleRestart(scope.row)">重启</el-button>
+          <el-button size="mini"
+              @click="handleModify(scope.row)">修改</el-button>
+          <el-button size="mini" type="danger"
+              @click="handleDelete(scope.row)">删除</el-button>
+        </el-button-group>
+      </template>
+    </el-table-column>
+
+  </el-table>
+
+  </div>
+  {% endverbatim %}
+{% endblock %}
+
+{% block footer %}
+<script>
+  var layer = null;
+  layui.use(['layer'], function () {
+    layer = layui.layer //弹层
+  });
+
+  var selfIndex = parent.layer.getFrameIndex(window.name); //先得到当前iframe层的索引
+  // 获取url里的 ?version_id=xxx
+  var searchVersionId = location.search;
+
+  new Vue({
+      el: '#app-service-inst',
+      data() {
+        const rateValueValidator = (rule, value, cb) => {
+          if(! value){
+            cb()
+          }
+          if(value < 0 || value > 100){
+            cb(new Error('值必须位于 0 - 100 间'))
+          } else {
+            cb()
+          }
+        }
+        const portValidator = (rule, value, cb) => {
+          if(value < 0 || value > 65535){
+            cb(new Error('值必须非负且小于等于 65535 '))
+          } else {
+            cb()
+          }
+        }
+        return {
+          list: null,
+          loading: true,
+          exceptStatus: ['install_failed', 'installing', 'deleting', 'delete_failed'],
+          hostOptions: null, // 主机信息
+          versionOptions: null, // 版本信息
+          hasGotVersionOptions: false,
+
+        }
+      },
+      methods: {
+        fetchData(){
+          var url = '{% url "api_microservice_inst" microservice.id %}' //数据接口
+          url += searchVersionId;
+          $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+          }).done(result => {
+            this.list = result.data
+          }).fail((xhr, status, error) => {
+            ajaxErrorHandle(xhr, status, error, frameIdx=null, action='获取数据');
+          }).always(() => {
+            this.loading = false
+          })
+        },
+
+        getVersionList(){
+          const _this = this
+          if(! _this.hasGotVersionOptions){
+            _this.versionOptions = []
+            $.ajax({
+              url: '{% url "api_microservice_versions" microservice.id %}?page=1&limit=1000',
+              type: 'GET',
+              dataType: 'json',
+            }).done(result => {
+              result.data.forEach(item => {
+                _this.versionOptions.push(
+                  {label: item.version, value: item.id},
+                )
+              })
+              _this.hasGotVersionOptions = true
+            }).fail((xhr, status, error) => {
+              ajaxErrorHandle(xhr, status, error, frameIdx=null, action='获取数据');
+            }).always(() => {
+            })
+
+          }
+        },
+
+
+        // 删除
+        handleDelete(obj){
+          const _this = this;
+          layer.confirm('确定删除？', {icon: 0, title:'提示'}, function (index) {
+            layer.close(index);
+            // loading
+            var loadingLayerIdx = layer.load(2, {
+              shade: [0.3]
+            });
+
+            var url = '{% url "api_microservice_inst_mng" microservice.id 0 %}';
+            url = url.substr(0, url.lastIndexOf(0));
+            url +=  obj.id + '/';
+
+            $.ajax({
+              url: url,
+              type: "DELETE",
+              dataType: 'json',
+              processData: false,
+              contentType: false,
+            }).done(result => {
+              layer.msg('操作成功', {icon: 1});
+              // 刷新表格（即点击分页控件的“确定”按钮）
+              _this.fetchData();
+            }).fail((xhr, status, error) => {
+              ajaxErrorHandle(xhr, status, error, frameIdx=null, action='删除');
+            }).always(() => {
+              // close loading
+              layer.close(loadingLayerIdx);
+            });
+          })
+        }
+
+      },
+      created(){
+        this.fetchData()
+      }
+    })
+
+  </script>
+{% endblock %}

@@ -126,4 +126,22 @@ class MicroServiceInstance(models.Model):
         ordering = ['-updated']
 
 
+class DeployRecord(models.Model):
+
+    DEPLOY_TYPE = (
+        ('install', 'install'),
+        ('upgrade', 'upgrade'),
+        ('revert', 'revert'),
+        ('delete', 'delete'),
+    )
+
+    deploy_type = models.CharField(max_length=16, verbose_name="发布类型", choices=DEPLOY_TYPE, default='install')
+    duration = models.PositiveSmallIntegerField(blank=True, null=True)
+    description = models.CharField(max_length=128, null=True, blank=True, verbose_name='描述')
+    created_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(blank=True, null=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
+    raw_log = models.TextField(null=True, blank=True, help_text ="任务执行日志")
+    task_id = models.CharField(max_length=64, help_text='任务id')
+    service = models.ForeignKey(MicroService, on_delete=models.DO_NOTHING)
 

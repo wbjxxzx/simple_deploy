@@ -12,6 +12,10 @@ pages = [
         views.ServiceVersionPageView.as_view(),
         name='page_service_versions'),
 
+    url(r'^service/(?P<service_id>[0-9]+)/insts/$',
+        views.ServiceInstPageView.as_view(),
+        name='page_inst'),
+
     url(r'^service/versions/(?P<pk>[0-9]+)/(?P<action>[a-z]+)/$',
         views.VersionDeployPageView.as_view(),
         name='page_version_deploy'),
@@ -39,6 +43,7 @@ apis = [
 
     # 发布
     url(r'^api/microservice/(?P<service_id>[0-9]+)/inst/$', views.InstanceApi.as_view(), name='api_microservice_inst'),
+    url(r'^api/microservice/(?P<service_id>[0-9]+)/inst/(?P<pk>[0-9]+)/$', views.InstanceManageApi.as_view(), name='api_microservice_inst_mng'),
     url(r'^api/microservice/(?P<service_id>[0-9]+)/deploy/(?P<action>[a-z]+)/version/(?P<pk>[0-9]+)/$',
         views.VersionDeployActionApi.as_view(),
         name='api_microservice_version_deploy_action'),

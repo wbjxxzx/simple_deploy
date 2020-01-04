@@ -97,6 +97,22 @@
                   ></select>
         </div>
       </div>
+	  
+      <div class="layui-form-item">
+        <label class="layui-form-label"><i class="layui-icon layui-icon-rate" style="color: red;"></i> 配置修订号 </label>
+        <div class="layui-input-block">
+          <select id="service-install-form-conf"
+                  name="revision"
+                  lay-verify="required"
+                  xm-select="install-select-conf"
+                  xm-select-search=""
+                  xm-select-search-type="dl"
+                  xm-select-direction="down"
+                  xm-select-max="1"
+                  xm-select-show-count="10"
+                  ></select>
+        </div>
+      </div>
 
       <div class="layui-form-item">
         <div class="layui-input-block">
@@ -289,7 +305,7 @@ layui.use(['form', 'table', 'formSelects'],function () {
       dataType: 'json',
     }).done(resp => {
       var list = [];
-      var options = '<option value="">直接选择或搜索,暴多20条记录</option>';
+      var options = '<option value="">直接选择或搜索,最多20条记录</option>';
       resp.data.forEach(item => {
         var option = '<option value="' + item.id + '"';
         option += item.enable ? '' : 'disabled';
@@ -305,7 +321,23 @@ layui.use(['form', 'table', 'formSelects'],function () {
     })
   }
 
+  function renderSelectConf(){
+    // 渲染配置版本下拉框
+    var list = [];
+    var options = '<option value="">选择1条记录</option>';
+    {% for rev in microserviceversion.microservice.confrevision_set.all %}
+      {% if rev.is_default  %}
+        list.push('<option value="{{ rev.id }}" selected>{{ rev.revision }}: {{ rev.description }}</option>');
+      {% else %}
+        list.push('<option value="{{ rev.id }}">{{ rev.revision }}: {{ rev.description }}</option>');
+      {% endif %}
+    {% endfor %}
+    options += list.join('');
+    $('#service-install-form-conf').empty().append(options);
+  }
+
   function renderInstallForm(){
+    renderSelectConf();
     form.render('select', 'install'); // 刷新 select 显示数据
     formSelects.render();
     formSelects.on('select-host', function (id, vals, val, isAdd, isDisabled) {
