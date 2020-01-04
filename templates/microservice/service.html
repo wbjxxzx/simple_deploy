@@ -169,6 +169,8 @@
         {field: 'name', title: 'service名称', sort: true, minWidth: 120}
         , {field: 'language', title: '语言类型', width: 100}
         , {field: 'description', title: '描述', minWidth: 150}
+        , {field: 'num_insts', title: '实例数量', width: 120, sort: true, event: 'instList',
+           style: 'cursor: pointer; color: #01AAED; text-decoration: underline'}
 
         , {fixed: 'right', title: '操作', width: 320, align: 'center', toolbar: '#barDemo'}
       ]]
@@ -222,6 +224,8 @@
           handleShowVersion(obj);
         } else if (layEvent === 'conf'){
           handleShowConf(obj);
+        } else if (layEvent === 'instList'){
+          handleShowInst(obj);
         }
       });
 
@@ -245,6 +249,18 @@
           type: 2, // 0（信息框，默认）1（页面层）2（iframe层）3（加载层）4（tips层）
           content: url,    // 设置跳转的url，跳转到对应的页面
           area: ["60%", "100%"],
+          shadeClose: true, // 点击弹出层的shade可关闭弹出层
+        })
+      }
+
+      function handleShowInst(obj){
+        var url = '{% url "page_inst" 0 %}';
+        url = url.replace('0', obj.data.id);
+        layer.open({
+          title: '服务[<span style="color: green; font-weight: 700">' + obj.data.name + '</span>] 实例信息',
+          type: 2, // 0（信息框，默认）1（页面层）2（iframe层）3（加载层）4（tips层）
+          content: url,    // 设置跳转的url，跳转到对应的页面
+          area: ["60%", "80%"],
           shadeClose: true, // 点击弹出层的shade可关闭弹出层
         })
       }

@@ -27,7 +27,7 @@ class ServiceApi(generic.View):
         page = int(query.get('page', 1))
         limit = int(query.get('limit', 20))
 
-        services = MicroService.objects.select_related('updated_by')
+        services = MicroService.objects.select_related('updated_by').annotate(num_insts=Count('microserviceinstance'))
         paginator = Paginator(services, limit)
         pdata = paginator.page(page)
 
@@ -40,6 +40,7 @@ class ServiceApi(generic.View):
             'build_url': item.build_url,
             'updated_by': item.updated_by.username,
             'updated': localtime(item.updated).strftime('%Y-%m-%d %H:%M:%S %Z'),
+            'num_insts': item.num_insts,
         } for item in pdata]
 
         return JsonResponse({
@@ -168,6 +169,12 @@ class ServiceVersionApi(generic.View):
         return JsonResponse({'msg': '创建任务失败{}'.format(r.content)})
 
 
+class ServiceInstPageView(generic.DetailView):
+    template_name = 'microservice/instance.html'
+    model = MicroService
+    pk_url_kwarg = 'service_id'
+
+
 class InstanceApi(generic.View):
     def get(self, request, service_id):
         query = request.GET
@@ -212,6 +219,12 @@ class InstanceApi(generic.View):
             'count': insts.count(),
             'code': 0,
         })
+
+
+class InstanceManageApi(generic.View):
+    def delete(self, request, service_id, pk):
+        MicroServiceInstance.objects.filter(pk=pk).delete()
+        return JsonResponse({})
 
 
 class VersionDeployPageView(generic.DetailView):
@@ -288,6 +301,13 @@ class VersionDeployActionApi(generic.View):
                 MicroServiceInstance.objects.filter(pk=inst.id).update(**d)
 
         # TODO 发起任务
+        DeployRecord.objects.create(
+            deploy_type=action,
+            description='{}服务[{}]'.format(action, service.name),
+            user=request.user,
+            service=service,
+            task_id=time.time()
+        )
 
         return JsonResponse({})
 
@@ -319,6 +339,7 @@ class VersionInstallApi(generic.View):
 
     def post(self, request, service_id, pk):
         comma_host_ids = request.POST.get('host', '').strip()
+        revision_id = request.POST.get('revision', '').strip()
 
         if not comma_host_ids:
             return JsonResponse({'msg': '主机不能为空'}, status=417)
@@ -349,6 +370,19 @@ class VersionInstallApi(generic.View):
         if hosts.count() != len(idset):
             return JsonResponse({'msg': '请发送正确的主机id'}, status=417)
 
+        if revision_id:
+            try:
+                revision = ConfRevision.objects.get(pk=revision_id)
+            except ConfRevision.DoesNotExist:
+                revision_id = None
+
+        # revision_id 为空时  查找默认配置
+        if not revision_id:
+            try:
+                revision = ConfRevision.objects.get(service=service, is_default=True)
+            except ConfRevision.DoesNotExist:
+                return JsonResponse({'msg': '请先创建配置文件'}, status=417)
+
         installing_insts = []
         for host in hosts:
             d = {
@@ -359,10 +393,18 @@ class VersionInstallApi(generic.View):
                 'status': InstanceStatus.installing.value,
                 'locked': True,
                 'updated_by': request.user,
+                'conf_revision_id': revision_id,
             }
             inst = MicroServiceInstance.objects.create(**d)
             installing_insts.append(inst.id)
 
         # TODO 发起任务
+        DeployRecord.objects.create(
+            deploy_type='install',
+            description='安装服务[{}]'.format(service.name),
+            user=request.user,
+            service=service,
+            task_id=time.time()
+        )
 
         return JsonResponse({})
